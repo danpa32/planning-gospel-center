@@ -392,9 +392,14 @@ function lireUrl() {
 
 async function demarrer() {
   try {
-    const rep = await fetch("evenements.json", { cache: "no-cache" });
-    if (!rep.ok) throw new Error(`fichier introuvable (${rep.status})`);
-    etat.donnees = JSON.parse(await rep.text());
+    // La version du dépôt est la plus récente ; le fichier publié peut être en cache quelques minutes.
+    let texte = await lireFichierDepot();
+    if (texte === null) {
+      const rep = await fetch("evenements.json", { cache: "no-cache" });
+      if (!rep.ok) throw new Error(`fichier introuvable (${rep.status})`);
+      texte = await rep.text();
+    }
+    etat.donnees = JSON.parse(texte);
   } catch (e) {
     document.getElementById("erreurs").hidden = false;
     document.getElementById("erreurs").textContent =
@@ -417,4 +422,4 @@ async function demarrer() {
   initEditeur();
 }
 
-demarrer();
+document.addEventListener("DOMContentLoaded", demarrer);

@@ -62,6 +62,23 @@ async function apiGithub(methode, corps) {
   return rep.json();
 }
 
+// Lecture publique du fichier dans le dépôt (sans jeton pour les visiteurs).
+// Renvoie null si le dépôt est inconnu ou injoignable, pour se rabattre sur le fichier publié.
+async function lireFichierDepot() {
+  const { depot, branche, jeton } = lireReglages();
+  if (!depot) return null;
+  const headers = { Accept: "application/vnd.github.raw+json" };
+  if (jeton) headers.Authorization = `Bearer ${jeton}`;
+  try {
+    const rep = await fetch(
+      `https://api.github.com/repos/${depot}/contents/${FICHIER}?ref=${encodeURIComponent(branche)}`,
+      { cache: "no-cache", headers });
+    return rep.ok ? await rep.text() : null;
+  } catch {
+    return null;
+  }
+}
+
 function versBase64(texte) {
   const octets = new TextEncoder().encode(texte);
   let binaire = "";
