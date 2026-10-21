@@ -58,7 +58,18 @@ Chaque catégorie (et `dimanches`) peut avoir une `"legende"` : une phrase affic
 de la page. Le champ `"legende"` à la racine du fichier est la phrase d'introduction de cette légende.
 
 Tous les dimanches sont colorés avec la couleur `dimanches` ; un dimanche qui a un événement prend la couleur
-de l'événement. On peut ajouter autant de catégories que souhaité.
+de l'événement. Les dimanches sans culte se listent dans `"sauf"` avec les mêmes règles que les événements
+(voir « Les règles quand ») : ils restent sans couleur.
+
+```json
+"dimanches": {
+  "nom": "Culte du dimanche", "couleur": "#3b82f6",
+  "sauf": [
+    { "jour": "dimanche", "rang": "dernier", "mois": 12 },
+    { "jour": "dimanche", "rang": 1, "mois": 1 }
+  ]
+}
+``` On peut ajouter autant de catégories que souhaité.
 
 ### Heure et lieu par défaut
 
@@ -94,6 +105,7 @@ Seuls `titre`, `categorie` et `quand` sont obligatoires. `duree` est en jours (3
 | n-ième jour d'un mois | `{ "jour": "dimanche", "rang": 2, "mois": 12 }` — `rang` : 1 à 5 ou `"dernier"` |
 | Plusieurs mois | `{ "jour": "vendredi", "rang": 1, "mois": [3, 11] }` |
 | Jour le plus proche d'une date | `{ "proche_de": "10-31", "jour": "dimanche" }` (dimanche le plus proche d'Halloween) |
+| Premier jour à partir d'une date | `{ "a_partir_de": "02-03", "jour": "dimanche" }` (le 3 février si c'est un dimanche, sinon le dimanche suivant) |
 | Une seule fois | `{ "date": "2027-10-16" }` (ou une liste de dates) |
 
 Options utilisables avec toutes les règles :

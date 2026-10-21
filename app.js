@@ -81,15 +81,17 @@ function datesDeBase(q, annee) {
   if ("paques" in q) {
     return [ajouterJours(paques(annee), Number(q.paques))];
   }
-  if ("proche_de" in q) {
-    // Le jour de la semaine demandé le plus proche d'une date (ex. le samedi le plus proche d'Halloween).
-    const m = /^(\d{2})-(\d{2})$/.exec(q.proche_de);
-    if (!m) throw new Error(`"proche_de" doit être au format MM-JJ (ex. "10-31")`);
+  if ("proche_de" in q || "a_partir_de" in q) {
+    // "proche_de" : le jour de la semaine demandé le plus proche d'une date (ex. le dimanche le plus proche d'Halloween).
+    // "a_partir_de" : ce jour-là s'il tombe le bon jour de la semaine, sinon le suivant (ex. le dimanche dès le 3 février).
+    const cle = "proche_de" in q ? "proche_de" : "a_partir_de";
+    const m = /^(\d{2})-(\d{2})$/.exec(q[cle]);
+    if (!m) throw new Error(`"${cle}" doit être au format MM-JJ (ex. "10-31")`);
     const jourSemaine = JOURS[String(q.jour).toLowerCase()];
     if (jourSemaine === undefined) throw new Error(`jour « ${q.jour} » inconnu`);
     const repere = new Date(annee, +m[1] - 1, +m[2]);
     let ecart = (jourSemaine - repere.getDay() + 7) % 7;
-    if (ecart > 3) ecart -= 7;
+    if (cle === "proche_de" && ecart > 3) ecart -= 7;
     return [ajouterJours(repere, ecart)];
   }
   if ("jour" in q) {
@@ -138,6 +140,13 @@ function dimanchesVisibles() {
   return Boolean(etat.donnees.dimanches) && !etat.masquees.has(CLE_DIMANCHES);
 }
 
+// Dimanches sans culte (règles "sauf" de "dimanches", ex. le dernier dimanche de décembre).
+function dimanchesSansCulte(annee) {
+  return new Set((etat.donnees.dimanches?.sauf || [])
+    .flatMap(q => datesDeBase(q, annee))
+    .map(d => d.getTime()));
+}
+
 // Heure et lieu : ceux de l'événement, sinon les valeurs "par_defaut" du fichier.
 function heureDe(evt) {
   return evt.heure || etat.donnees.par_defaut?.heure || "";
@@ -179,6 +188,7 @@ function pastille(couleur) {
 function vueCalendrier(occs) {
   const aujourdhui = new Date();
   const grille = el("div", { class: "grille-annee" });
+  const sansCulte = dimanchesSansCulte(etat.annee);
 
   for (let m = 0; m < 12; m++) {
     const jours = el("div", { class: "jours" }, ENTETES_JOURS.map(j => el("span", { class: "entete-jour" }, j)));
@@ -191,7 +201,8 @@ function vueCalendrier(occs) {
       const date = new Date(etat.annee, m, d);
       const duJour = occs.filter(o => date >= o.debut && date <= o.fin);
       const classes = ["jour"];
-      const dimancheOrdinaire = date.getDay() === 0 && !duJour.length && dimanchesVisibles();
+      const dimancheOrdinaire = date.getDay() === 0 && !duJour.length && dimanchesVisibles()
+        && !sansCulte.has(date.getTime());
       if (date.getDay() === 0) classes.push("dimanche");
       if (duJour.length) classes.push("occupe");
       if (dimancheOrdinaire) classes.push("culte");
@@ -341,9 +352,10 @@ function pluriel(n, mot) {
 }
 
 function nombreDimanches(annee) {
+  const sansCulte = dimanchesSansCulte(annee);
   let n = 0;
   for (let d = new Date(annee, 0, 1); d.getFullYear() === annee; d = ajouterJours(d, 1)) {
-    if (d.getDay() === 0) n++;
+    if (d.getDay() === 0 && !sansCulte.has(d.getTime())) n++;
   }
   return n;
 }
@@ -390,6 +402,12 @@ function rendre() {
   document.getElementById("choix-periode").hidden = etat.vue !== "liste";
 
   const { liste, erreurs } = occurrences(etat.annee);
+  try {
+    dimanchesSansCulte(etat.annee);
+  } catch (e) {
+    etat.donnees.dimanches.sauf = [];
+    erreurs.push(`Dimanches sans culte ("sauf") : ${e.message}`);
+  }
   afficherErreurs(erreurs);
   rendreFiltres(liste);
   rendreLegende();

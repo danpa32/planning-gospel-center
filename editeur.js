@@ -10,6 +10,7 @@ const TYPES_REGLE = {
   jour: "N-ième jour d'un mois",
   paques: "Par rapport à Pâques",
   proche_de: "Jour le plus proche d'une date",
+  a_partir_de: "Premier jour à partir d'une date",
   date: "Une seule fois (date précise)",
 };
 const RANGS = { 1: "1er", 2: "2e", 3: "3e", 4: "4e", 5: "5e", dernier: "dernier" };
@@ -159,6 +160,7 @@ function decrireRegle(evt) {
     const n = Number(q.paques);
     texte = n === 0 ? "Pâques" : `Pâques ${n > 0 ? "+" : "−"} ${Math.abs(n)} jour${Math.abs(n) > 1 ? "s" : ""}`;
   } else if ("proche_de" in q) texte = `${q.jour} le plus proche du ${nomDateMoisJour(q.proche_de)}`;
+  else if ("a_partir_de" in q) texte = `1er ${q.jour} à partir du ${nomDateMoisJour(q.a_partir_de)}`;
   else if ("jour" in q) {
     const mois = listeMois(q.mois);
     texte = `${RANGS[q.rang] || q.rang} ${q.jour} ${/^[aeiouy]/.test(mois) ? "d'" : "de "}${mois}`;
@@ -288,12 +290,12 @@ const OPTIONS_JOURS = Object.fromEntries(Object.keys(JOURS).map(j => [j, j]));
 const OPTIONS_MOIS = Object.fromEntries(NOMS_MOIS.map((m, i) => [i + 1, m]));
 
 function typeDeRegle(q) {
-  // "proche_de" utilise aussi la clé "jour" : il doit être testé avant.
-  return ["proche_de", "chaque_annee", "paques", "date", "jour"].find(t => t in q) || "jour";
+  // "proche_de" et "a_partir_de" utilisent aussi la clé "jour" : ils doivent être testés avant.
+  return ["proche_de", "a_partir_de", "chaque_annee", "paques", "date", "jour"].find(t => t in q) || "jour";
 }
 
 function champsRegle(type, q) {
-  const [mm, jj] = (q.chaque_annee || q.proche_de || "01-01").split("-").map(Number);
+  const [mm, jj] = (q.chaque_annee || q.proche_de || q.a_partir_de || "01-01").split("-").map(Number);
   switch (type) {
     case "chaque_annee":
       return el("div", { class: "rangee" },
@@ -306,6 +308,11 @@ function champsRegle(type, q) {
       return el("div", { class: "rangee" },
         champ("Le", select(OPTIONS_JOURS, q.jour || "samedi", { name: "jour" })),
         champ("le plus proche du", entree("number", jj, { name: "jj", min: 1, max: 31, required: "" })),
+        champ("Mois", select(OPTIONS_MOIS, mm, { name: "mm" })));
+    case "a_partir_de":
+      return el("div", { class: "rangee" },
+        champ("Le 1er", select(OPTIONS_JOURS, q.jour || "dimanche", { name: "jour" })),
+        champ("à partir du", entree("number", jj, { name: "jj", min: 1, max: 31, required: "" })),
         champ("Mois", select(OPTIONS_MOIS, mm, { name: "mm" })));
     case "date":
       return champ("Date(s)", entree("text", [].concat(q.date || []).join(", "),
@@ -338,6 +345,8 @@ function lireRegle(f, type) {
       return { paques: Number(d.get("paques")) };
     case "proche_de":
       return { proche_de: `${deuxChiffres(d.get("mm"))}-${deuxChiffres(d.get("jj"))}`, jour: d.get("jour") };
+    case "a_partir_de":
+      return { a_partir_de: `${deuxChiffres(d.get("mm"))}-${deuxChiffres(d.get("jj"))}`, jour: d.get("jour") };
     case "date": {
       const dates = d.get("date").split(",").map(s => s.trim()).filter(Boolean);
       return { date: dates.length === 1 ? dates[0] : dates };

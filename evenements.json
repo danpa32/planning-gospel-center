@@ -5,7 +5,11 @@
   "dimanches": {
     "nom": "Culte du dimanche",
     "couleur": "#3b82f6",
-    "legende": "Implication standard des équipes, préparation habituelle."
+    "legende": "Implication standard des équipes, préparation habituelle.",
+    "sauf": [
+      { "jour": "dimanche", "rang": "dernier", "mois": 12 },
+      { "jour": "dimanche", "rang": 1, "mois": 1 }
+    ]
   },
   "categories": {
     "parcours": {
@@ -33,14 +37,20 @@
     {
       "titre": "Baptêmes",
       "categorie": "evenement",
-      "quand": { "paques": 49 },
-      "description": "Placé à Pentecôte par défaut : à ajuster."
+      "quand": { "jour": "dimanche", "rang": 1, "mois": 6 },
+      "description": "1er dimanche de juin par défaut : à ajuster."
     },
     {
       "titre": "Noël",
       "categorie": "evenement",
       "quand": { "jour": "dimanche", "rang": 2, "mois": 12 },
       "description": "Concert de Noël."
+    },
+    {
+      "titre": "Anniversaire du GCY",
+      "categorie": "vie-eglise",
+      "quand": { "a_partir_de": "02-03", "jour": "dimanche" },
+      "description": "Fondé le 3 février 2019 : fêté le 3 février si c'est un dimanche, sinon le dimanche suivant."
     },
     {
       "titre": "Life Party",
