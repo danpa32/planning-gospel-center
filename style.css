@@ -556,6 +556,8 @@ button {
 
 .avance summary { cursor: pointer; font-size: 14px; margin-bottom: 4px; }
 
+.dialogue .aide { margin: -4px 0 12px; font-size: 12px; color: var(--texte-doux); }
+
 .erreur-form { color: var(--aujourdhui); margin: 0; font-size: 14px; }
 
 .erreur-form:empty { display: none; }

@@ -1,5 +1,6 @@
 {
   "eglise": "Gospel Center Yverdon",
+  "par_defaut": { "heure": "17h00", "lieu": "Explorit, Yverdon – salle Exploria" },
   "dimanches": { "nom": "Culte du dimanche", "couleur": "#3b82f6" },
   "categories": {
     "evenement": { "nom": "Gros événements", "couleur": "#f59e0b" },

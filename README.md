@@ -57,6 +57,15 @@ On peut vérifier le fichier sur [jsonlint.com](https://jsonlint.com).
 Tous les dimanches sont colorés avec la couleur `dimanches` ; un dimanche qui a un événement prend la couleur
 de l'événement. On peut ajouter autant de catégories que souhaité.
 
+### Heure et lieu par défaut
+
+```json
+"par_defaut": { "heure": "17h00", "lieu": "Explorit, Yverdon – salle Exploria" }
+```
+
+Un événement sans `heure` ou sans `lieu` utilise ces valeurs ; il suffit d'en indiquer d'autres dans
+l'événement pour les remplacer.
+
 ### Un événement
 
 ```json

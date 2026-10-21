@@ -138,6 +138,15 @@ function dimanchesVisibles() {
   return Boolean(etat.donnees.dimanches) && !etat.masquees.has(CLE_DIMANCHES);
 }
 
+// Heure et lieu : ceux de l'événement, sinon les valeurs "par_defaut" du fichier.
+function heureDe(evt) {
+  return evt.heure || etat.donnees.par_defaut?.heure || "";
+}
+
+function lieuDe(evt) {
+  return evt.lieu || etat.donnees.par_defaut?.lieu || "";
+}
+
 function memeJour(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -233,7 +242,7 @@ function texteRecap(p, occs) {
   const lignes = [`${etat.donnees.eglise} – ${p.nom} ${etat.annee}`, ""];
   for (const o of occs) {
     let ligne = `• ${plageDates(o, fmtLong)} : ${o.titre}`;
-    const details = [o.evt.heure, o.evt.lieu].filter(Boolean).join(", ");
+    const details = [heureDe(o.evt), lieuDe(o.evt)].filter(Boolean).join(", ");
     if (details) ligne += ` (${details})`;
     lignes.push(ligne);
   }
@@ -259,7 +268,7 @@ function vueListe(occs) {
     const liste = el("ul", { class: "liste" },
       duPeriode.length
         ? duPeriode.map(o => {
-            const meta = [o.evt.heure, o.evt.lieu, categorie(o.evt).nom].filter(Boolean).join(" · ");
+            const meta = [heureDe(o.evt), lieuDe(o.evt), categorie(o.evt).nom].filter(Boolean).join(" · ");
             return el("li", { class: "ligne" },
               el("span", { class: "quand" }, plageDates(o, fmtLong)),
               el("span", { class: "titre" }, pastille(categorie(o.evt).couleur), o.titre),
@@ -294,7 +303,7 @@ function exporterIcs() {
   const horodatage = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Planning eglise//FR", "CALSCALE:GREGORIAN"];
   for (const o of liste.filter(o => !etat.masquees.has(o.evt.categorie))) {
-    const desc = [o.evt.heure, o.evt.description].filter(Boolean).join(" – ");
+    const desc = [heureDe(o.evt), o.evt.description].filter(Boolean).join(" – ");
     lignes.push(
       "BEGIN:VEVENT",
       `UID:${icsDate(o.debut)}-${o.titre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}@planning-eglise`,
@@ -304,7 +313,7 @@ function exporterIcs() {
       `SUMMARY:${icsTexte(o.titre)}`,
       `CATEGORIES:${icsTexte(categorie(o.evt).nom)}`);
     if (desc) lignes.push(`DESCRIPTION:${icsTexte(desc)}`);
-    if (o.evt.lieu) lignes.push(`LOCATION:${icsTexte(o.evt.lieu)}`);
+    if (lieuDe(o.evt)) lignes.push(`LOCATION:${icsTexte(lieuDe(o.evt))}`);
     lignes.push("END:VEVENT");
   }
   lignes.push("END:VCALENDAR");
