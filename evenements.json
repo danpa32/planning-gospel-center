@@ -1,11 +1,28 @@
 {
   "eglise": "Gospel Center Yverdon",
   "par_defaut": { "heure": "17h00", "lieu": "Explorit, Yverdon – salle Exploria" },
-  "dimanches": { "nom": "Culte du dimanche", "couleur": "#3b82f6" },
+  "legende": "Chaque couleur indique le niveau d'implication des équipes et le travail à prévoir en amont.",
+  "dimanches": {
+    "nom": "Culte du dimanche",
+    "couleur": "#3b82f6",
+    "legende": "Implication standard des équipes, préparation habituelle."
+  },
   "categories": {
-    "evenement": { "nom": "Gros événements", "couleur": "#dc2626" },
-    "vie-eglise": { "nom": "Vie d'église", "couleur": "#f59e0b" },
-    "parcours": { "nom": "Parcours & formations", "couleur": "#16a34a" }
+    "parcours": {
+      "nom": "Parcours & formations",
+      "couleur": "#16a34a",
+      "legende": "Implication partielle ou inexistante des équipes, peu de préparation."
+    },
+    "vie-eglise": {
+      "nom": "Vie d'église",
+      "couleur": "#f59e0b",
+      "legende": "Implication de la plupart des secteurs, travail à anticiper en amont."
+    },
+    "evenement": {
+      "nom": "Gros événements",
+      "couleur": "#dc2626",
+      "legende": "Implication de tous les secteurs, gros travail de préparation en amont."
+    }
   },
   "evenements": [
     {

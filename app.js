@@ -367,6 +367,19 @@ function rendreFiltres(liste) {
     }, pastille(cat.couleur), cat.nom, el("span", { class: "compte" }, String(comptes[cle] || 0)))));
 }
 
+// Signification des couleurs : une ligne par catégorie qui a une "legende".
+function rendreLegende() {
+  const zone = document.getElementById("legende");
+  const entrees = [etat.donnees.dimanches, ...Object.values(etat.donnees.categories)]
+    .filter(cat => cat?.legende);
+  zone.hidden = !entrees.length;
+  zone.replaceChildren(
+    etat.donnees.legende ? el("p", { class: "intro" }, etat.donnees.legende) : "",
+    el("ul", {}, entrees.map(cat => el("li", {},
+      pastille(cat.couleur),
+      el("span", {}, el("strong", {}, cat.nom), ` : ${cat.legende}`)))));
+}
+
 function rendre() {
   document.getElementById("annee").textContent = etat.annee;
   document.title = `${etat.donnees.eglise} – Planning ${etat.annee}`;
@@ -379,6 +392,7 @@ function rendre() {
   const { liste, erreurs } = occurrences(etat.annee);
   afficherErreurs(erreurs);
   rendreFiltres(liste);
+  rendreLegende();
   const visibles = liste.filter(o => !etat.masquees.has(o.evt.categorie));
   document.getElementById("resume").textContent =
     `${pluriel(visibles.length, "événement")} · ${pluriel(nombreDimanches(etat.annee), "dimanche")}`;

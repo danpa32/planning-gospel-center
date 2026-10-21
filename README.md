@@ -54,6 +54,9 @@ On peut vérifier le fichier sur [jsonlint.com](https://jsonlint.com).
 }
 ```
 
+Chaque catégorie (et `dimanches`) peut avoir une `"legende"` : une phrase affichée dans la légende en haut
+de la page. Le champ `"legende"` à la racine du fichier est la phrase d'introduction de cette légende.
+
 Tous les dimanches sont colorés avec la couleur `dimanches` ; un dimanche qui a un événement prend la couleur
 de l'événement. On peut ajouter autant de catégories que souhaité.
 
