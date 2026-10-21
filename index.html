@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning annuel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="entete">
+    <div class="titre-bloc">
+      <p class="surtitre" id="nom-eglise">Planning annuel</p>
+      <div class="nav-annee">
+        <button type="button" id="annee-prec" aria-label="Année précédente">‹</button>
+        <h1 id="annee">—</h1>
+        <button type="button" id="annee-suiv" aria-label="Année suivante">›</button>
+      </div>
+      <p class="resume" id="resume"></p>
+    </div>
+    <div class="actions">
+      <div class="onglets" role="tablist">
+        <button type="button" data-vue="calendrier" role="tab">Calendrier</button>
+        <button type="button" data-vue="liste" role="tab">Liste</button>
+      </div>
+      <button type="button" id="exporter" class="secondaire">Exporter .ics</button>
+      <button type="button" id="imprimer" class="secondaire">Imprimer</button>
+    </div>
+  </header>
+
+  <div class="barre-filtres">
+    <div id="filtres" class="filtres" aria-label="Catégories"></div>
+    <div class="periodes" id="choix-periode">
+      <span>Regrouper par</span>
+      <button type="button" data-periode="trimestre">trimestre</button>
+      <button type="button" data-periode="semestre">semestre</button>
+    </div>
+  </div>
+
+  <div id="erreurs" class="erreurs" hidden></div>
+
+  <section id="editeur" class="editeur" hidden></section>
+
+  <main id="contenu"></main>
+
+  <footer class="pied">
+    <button type="button" id="modifier" class="lien">Modifier le planning</button>
+  </footer>
+
+  <script src="app.js"></script>
+  <script src="editeur.js"></script>
+</body>
+</html>

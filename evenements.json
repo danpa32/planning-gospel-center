@@ -1,0 +1,47 @@
+{
+  "eglise": "Gospel Center Yverdon",
+  "dimanches": { "nom": "Culte du dimanche", "couleur": "#3b82f6" },
+  "categories": {
+    "evenement": { "nom": "Gros événements", "couleur": "#f59e0b" },
+    "vie-eglise": { "nom": "Vie d'église", "couleur": "#dc2626" },
+    "parcours": { "nom": "Parcours & formations", "couleur": "#16a34a" }
+  },
+  "evenements": [
+    {
+      "titre": "Pâques",
+      "categorie": "evenement",
+      "quand": { "paques": 0 }
+    },
+    {
+      "titre": "Baptêmes",
+      "categorie": "evenement",
+      "quand": { "paques": 49 },
+      "description": "Placé à Pentecôte par défaut : à ajuster."
+    },
+    {
+      "titre": "Noël",
+      "categorie": "evenement",
+      "quand": { "jour": "dimanche", "rang": 2, "mois": 12 },
+      "description": "Concert de Noël."
+    },
+    {
+      "titre": "Life Party",
+      "categorie": "vie-eglise",
+      "quand": { "proche_de": "10-31", "jour": "dimanche" },
+      "description": "Le dimanche le plus proche d'Halloween."
+    },
+    {
+      "titre": "Week-end d'église",
+      "categorie": "vie-eglise",
+      "quand": { "jour": "dimanche", "rang": 1, "mois": 10, "decalage": -2 },
+      "duree": 3,
+      "description": "Du vendredi au 1er dimanche d'octobre."
+    },
+    {
+      "titre": "J'ai un rôle à jouer",
+      "categorie": "parcours",
+      "quand": { "jour": "dimanche", "rang": 2, "mois": 1, "repeter": 5 },
+      "description": "5 sessions le dimanche, entre Noël et Pâques."
+    }
+  ]
+}
