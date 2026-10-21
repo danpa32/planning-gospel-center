@@ -33,9 +33,9 @@
     {
       "titre": "Week-end d'église",
       "categorie": "vie-eglise",
-      "quand": { "jour": "dimanche", "rang": 1, "mois": 10, "decalage": -2 },
+      "quand": { "jour": "vendredi", "rang": 1, "mois": 10 },
       "duree": 3,
-      "description": "Du vendredi au 1er dimanche d'octobre."
+      "description": "Du 1er vendredi d'octobre au dimanche (jamais en septembre)."
     },
     {
       "titre": "J'ai un rôle à jouer",
