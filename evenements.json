@@ -40,7 +40,7 @@
     {
       "titre": "J'ai un rôle à jouer",
       "categorie": "parcours",
-      "quand": { "jour": "dimanche", "rang": 2, "mois": 1, "repeter": 5 },
+      "quand": { "jour": "dimanche", "rang": 2, "mois": [1, 9], "repeter": 5 },
       "description": "5 sessions le dimanche, entre Noël et Pâques."
     }
   ]
