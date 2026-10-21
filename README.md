@@ -49,8 +49,8 @@ On peut vérifier le fichier sur [jsonlint.com](https://jsonlint.com).
 ```json
 "dimanches": { "nom": "Culte du dimanche", "couleur": "#3b82f6" },
 "categories": {
-  "evenement":  { "nom": "Gros événements", "couleur": "#f59e0b" },
-  "vie-eglise": { "nom": "Vie d'église",    "couleur": "#dc2626" }
+  "evenement":  { "nom": "Gros événements", "couleur": "#dc2626" },
+  "vie-eglise": { "nom": "Vie d'église",    "couleur": "#f59e0b" }
 }
 ```
 

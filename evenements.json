@@ -3,8 +3,8 @@
   "par_defaut": { "heure": "17h00", "lieu": "Explorit, Yverdon – salle Exploria" },
   "dimanches": { "nom": "Culte du dimanche", "couleur": "#3b82f6" },
   "categories": {
-    "evenement": { "nom": "Gros événements", "couleur": "#f59e0b" },
-    "vie-eglise": { "nom": "Vie d'église", "couleur": "#dc2626" },
+    "evenement": { "nom": "Gros événements", "couleur": "#dc2626" },
+    "vie-eglise": { "nom": "Vie d'église", "couleur": "#f59e0b" },
     "parcours": { "nom": "Parcours & formations", "couleur": "#16a34a" }
   },
   "evenements": [
