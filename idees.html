@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau des idées</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="entete">
+    <div class="titre-bloc">
+      <p class="surtitre" id="nom-eglise">Tableau des idées</p>
+      <div class="nav-annee">
+        <button type="button" id="annee-prec" aria-label="Année précédente">‹</button>
+        <h1 id="annee">—</h1>
+        <button type="button" id="annee-suiv" aria-label="Année suivante">›</button>
+      </div>
+      <p class="resume" id="resume"></p>
+    </div>
+    <div class="actions">
+      <div class="onglets" role="tablist" aria-label="Découpage de l'année">
+        <button type="button" data-cycle="civile" role="tab">Janv. – déc.</button>
+        <button type="button" data-cycle="scolaire" role="tab">Juil. – juin</button>
+      </div>
+      <a href="index.html" id="lien-planning" class="secondaire">Voir le planning</a>
+      <button type="button" id="imprimer" class="secondaire">Imprimer</button>
+    </div>
+  </header>
+
+  <section id="demarche" class="demarche" aria-label="La démarche"></section>
+
+  <section id="couleurs-cartes" class="legende" hidden></section>
+
+  <div class="barre-filtres">
+    <div id="secteurs" class="filtres" aria-label="Secteurs impliqués"></div>
+  </div>
+
+  <div id="erreurs" class="erreurs" hidden></div>
+
+  <section id="editeur" class="editeur" hidden></section>
+
+  <main id="tableau" class="tableau"></main>
+
+  <footer class="pied">
+    <button type="button" id="modifier" class="lien">Modifier le tableau</button>
+  </footer>
+
+  <script src="commun.js"></script>
+  <script src="dates.js"></script>
+  <script src="idees.js"></script>
+</body>
+</html>

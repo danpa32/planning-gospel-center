@@ -20,9 +20,64 @@ un événement qui tombe pendant des vacances est signalé en rouge.
 Les liens sont partageables : `…/#annee=2026&cycle=scolaire&vue=liste&par=semestre`
 (`annee` est la première année : 2026 pour 2026–2027).
 
+## Tableau des idées (`idees.html`)
+
+Avant de construire le planning, on rassemble ce que l'église veut vivre dans l'année. Chaque idée
+est **portée par une personne ou un groupe** et indique les **secteurs à impliquer**.
+
+La démarche, rappelée en haut de la page :
+
+1. **Récolter** : chaque porteur de vision dépose ses idées (via un des admins).
+2. **Se rencontrer** : on échange ensemble sur chaque idée, on la retient ou on la met de côté.
+3. **Placer** : les idées retenues reçoivent une date dans le planning (`index.html`).
+4. **Élaborer** : chaque événement daté est préparé avec son porteur et les secteurs impliqués.
+
+Le tableau s'ouvre sur l'année qui vient, en vue civile ou scolaire comme le planning. Chaque idée est
+rattachée à un **mois** : elle apparaît donc dans les deux vues.
+
+À chaque nouvelle récolte, en mode édition :
+
+- **Reprendre les idées de l'année précédente** recopie les idées de l'année d'avant comme *Idées* à
+  rediscuter, avec leurs secteurs, porteur et vision (sans les notes). Les événements uniques déjà
+  réalisés ne sont pas repris. Pour un événement du planning, le mois est recalculé (Pâques, etc.).
+- **Ajouter les événements du planning** place sur le tableau, en *Au planning*, les événements
+  d'`evenements.json` de l'année affichée qui n'y sont pas encore.
+
+Le tableau a quatre colonnes : *Idées*, *Retenues*, *Au planning*, *Mises de côté*. En mode édition
+(**Modifier le tableau**, même jeton GitHub que le planning), on ajoute ou modifie une idée et on glisse
+les cartes d'une colonne à l'autre. La couleur d'une carte reprend les catégories d'`evenements.json`
+(niveau d'implication des équipes). En haut, chaque secteur affiche le nombre d'idées qui l'impliquent ;
+un clic filtre le tableau sur ce secteur.
+
+Tout est enregistré dans **`idees.json`** :
+
+```json
+{
+  "secteurs": ["Accueil", "Communication", "…"],
+  "idees": [
+    {
+      "titre": "Soirée de louange",
+      "porteur": "Équipe louange",
+      "annee": 2027,
+      "mois": 3,
+      "statut": "retenue",
+      "categorie": "vie-eglise",
+      "periode": "début du mois",
+      "frequence": "plusieurs",
+      "vision": "Pourquoi cet événement.",
+      "secteurs": ["Louange", "Sonorisation"],
+      "notes": "Échanges de la rencontre."
+    }
+  ]
+}
+```
+
+`statut` : `idee`, `retenue`, `planifiee` ou `ecartee`. `frequence` : `ponctuel`, `annuel`, `plusieurs`
+ou `regulier`. `mois` va de 1 à 12. La liste `secteurs` se modifie directement dans le fichier.
+
 ## Mettre en ligne sur GitHub Pages
 
-1. Créer un dépôt sur GitHub et y envoyer ces fichiers (`index.html`, les fichiers `.js`, `style.css`, `evenements.json`).
+1. Créer un dépôt sur GitHub et y envoyer ces fichiers (`index.html`, `idees.html`, les fichiers `.js`, `style.css`, `evenements.json`, `idees.json`).
 2. Dans le dépôt : **Settings → Pages → Source : Deploy from a branch**, branche `main`, dossier `/ (root)`.
 3. Après une minute, le site est disponible à `https://<compte>.github.io/<dépôt>/`.
 
@@ -33,7 +88,8 @@ les événements, avec un aperçu immédiat dans le calendrier. Ensuite :
 
 - Chaque modification est **enregistrée automatiquement** dans `evenements.json` sur le dépôt, environ une
   seconde après (les modifications rapprochées sont regroupées). Le site public est à jour environ une minute
-  plus tard. En cas d'échec, le panneau l'indique et propose **Réessayer**.
+  plus tard. En cas d'échec, le panneau l'indique et propose **Réessayer**. Le tableau des idées fonctionne
+  de la même manière avec `idees.json`.
 - **Télécharger le fichier** donne le `evenements.json` modifié (utile sans accès GitHub).
 
 La première fois, il faut renseigner les **Réglages GitHub** :
@@ -147,5 +203,5 @@ python3 serveur.py
 
 puis ouvrir <http://localhost:8000>. En local, rien n'est envoyé sur GitHub : les modifications du mode
 édition sont enregistrées automatiquement dans le dossier `local/` (ignoré par git), et les pages lisent
-ensuite ces copies. Le vrai `evenements.json` n'est pas touché. Pour repartir des
+ensuite ces copies. Les vrais `evenements.json` et `idees.json` ne sont pas touchés. Pour repartir des
 vraies données, supprimer le dossier `local/`.

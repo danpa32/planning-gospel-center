@@ -1,0 +1,79 @@
+{
+  "secteurs": [
+    "Accueil",
+    "Communication",
+    "Coordination",
+    "Hospitalité",
+    "Intendance",
+    "Intercession",
+    "Jeunesse",
+    "Louange",
+    "Ministère",
+    "Prédication et Présidence",
+    "Prophétie",
+    "Soins pastoraux",
+    "Sonorisation",
+    "IT, projection et lumières"
+  ],
+  "idees": [
+    {
+      "titre": "J'ai un rôle à jouer",
+      "annee": 2026,
+      "mois": 1,
+      "statut": "planifiee",
+      "periode": "2e dimanche de janvier · 5 semaines de suite",
+      "frequence": "regulier",
+      "categorie": "parcours",
+      "notes": "5 sessions le dimanche, entre Noël et Pâques."
+    },
+    {
+      "titre": "Pâques",
+      "annee": 2026,
+      "mois": 4,
+      "statut": "planifiee",
+      "periode": "Pâques",
+      "frequence": "annuel",
+      "categorie": "evenement"
+    },
+    {
+      "titre": "Baptêmes",
+      "annee": 2026,
+      "mois": 5,
+      "statut": "planifiee",
+      "periode": "Pâques + 49 jours",
+      "frequence": "annuel",
+      "categorie": "evenement",
+      "notes": "Placé à Pentecôte par défaut : à ajuster."
+    },
+    {
+      "titre": "Week-end d'église",
+      "annee": 2026,
+      "mois": 10,
+      "statut": "planifiee",
+      "periode": "1er vendredi d'octobre · 3 jours",
+      "frequence": "annuel",
+      "categorie": "vie-eglise",
+      "notes": "Du 1er vendredi d'octobre au dimanche (jamais en septembre)."
+    },
+    {
+      "titre": "Life Party",
+      "annee": 2026,
+      "mois": 11,
+      "statut": "planifiee",
+      "periode": "dimanche le plus proche du 31 octobre",
+      "frequence": "annuel",
+      "categorie": "vie-eglise",
+      "notes": "Le dimanche le plus proche d'Halloween."
+    },
+    {
+      "titre": "Noël",
+      "annee": 2026,
+      "mois": 12,
+      "statut": "planifiee",
+      "periode": "2e dimanche de décembre",
+      "frequence": "annuel",
+      "categorie": "evenement",
+      "notes": "Concert de Noël."
+    }
+  ]
+}

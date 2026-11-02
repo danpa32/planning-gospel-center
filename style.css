@@ -637,15 +637,196 @@ button {
 
 .erreur-form:empty { display: none; }
 
+/* Tableau des idées */
+
+.demarche { margin-bottom: 20px; }
+
+.demarche h2 { font-size: 15px; margin: 0 0 8px; }
+
+.demarche .etapes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+.demarche .etape {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.demarche .etape p { margin: 0; }
+
+.demarche .etape-titre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 6px !important;
+}
+
+/* Flèche vers l'étape suivante, centrée dans l'espace entre deux cartes */
+.demarche .etape:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 50%;
+  right: -26px;
+  transform: translateY(-50%);
+  color: var(--texte-doux);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.demarche .numero {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-texte);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .demarche .etapes { grid-template-columns: 1fr; gap: 28px; }
+  .demarche .etape:not(:last-child)::after {
+    content: "↓";
+    top: auto;
+    right: auto;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+.filtres .libelle {
+  align-self: center;
+  color: var(--texte-doux);
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+#secteurs .filtre[aria-pressed="false"] { opacity: 1; }
+
+#secteurs .filtre[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-texte);
+  border-color: var(--accent);
+}
+
+.tableau {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.colonne {
+  background: color-mix(in srgb, var(--bordure) 35%, transparent);
+  border-radius: var(--rayon);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.colonne.survol { outline: 2px dashed var(--texte-doux); outline-offset: -2px; }
+
+.colonne[data-statut="ecartee"] .carte { opacity: .7; }
+
+.colonne header h2 { margin: 0; font-size: 16px; }
+
+.colonne header h2 .compte { margin-left: 8px; vertical-align: 1px; }
+
+.colonne header p { margin: 2px 0 0; font-size: 13px; color: var(--texte-doux); }
+
+.colonne .vide { margin: 0; color: var(--texte-doux); font-style: italic; }
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-left: 5px solid var(--c);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.en-edition .carte[draggable="true"] { cursor: grab; }
+
+.carte h3 { margin: 0 0 2px; font-size: 15px; }
+
+.carte p { margin: 4px 0 0; }
+
+.carte .porteur,
+.carte .quand { color: var(--texte-doux); font-size: 13px; }
+
+.carte .porteur strong { color: var(--texte); font-weight: 600; }
+
+.carte .vision { white-space: pre-line; }
+
+.carte .notes { font-size: 13px; white-space: pre-line; }
+
+.carte .lien { margin-top: 6px; }
+
+.etiquettes {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.etiquettes li {
+  border: 1px solid var(--bordure);
+  background: var(--fond);
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+.carte .a-completer { font-size: 12px; color: var(--texte-doux); font-style: italic; }
+
+.editeur .recolte {
+  border-top: 1px solid var(--bordure);
+  padding-top: 12px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.secteurs-choix { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+.dialogue .boutons .espace { flex: 1; }
+
+@media (max-width: 1000px) {
+  .tableau { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 560px) {
   .nav-annee h1 { font-size: 32px; }
   .ligne { grid-template-columns: 1fr; }
   .ligne .meta, .ligne .desc { grid-column: 1; }
+  .tableau { grid-template-columns: 1fr; }
 }
 
 @media print {
   body { background: #fff; color: #000; padding: 0; font-size: 12px; }
-  .actions, .nav-annee button, .barre-filtres, .copier, .pied, .editeur { display: none; }
+  .actions, .nav-annee button, .barre-filtres, .copier, .pied, .editeur, .carte .lien { display: none; }
+  .tableau { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .carte { break-inside: avoid; }
   .grille-annee { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mois { break-inside: avoid; padding: 8px; }
   .periode { break-inside: avoid-page; }

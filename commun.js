@@ -1,4 +1,4 @@
-// Code partagé par les pages du planning :
+// Code partagé par le planning (index.html) et le tableau des idées (idees.html) :
 // construction du DOM, lecture/écriture des fichiers JSON (sur GitHub, ou en local avec serveur.py),
 // enregistrement automatique, champs de formulaire.
 
@@ -25,7 +25,7 @@ function pluriel(n, mot) {
   return `${n} ${mot}${n > 1 ? "s" : ""}`;
 }
 
-// Légende qu'on peut cacher ; le choix est retenu par ce navigateur.
+// Légende qu'on peut cacher ; le choix est retenu par ce navigateur, pour les deux pages.
 const STOCKAGE_LEGENDE = "planning-legende-cachee";
 
 function legendeRepliable(titre, ...contenu) {
