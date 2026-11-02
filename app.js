@@ -13,6 +13,7 @@ const etat = {
   vue: "calendrier",
   periode: "trimestre",
   masquees: new Set(),
+  griserPasse: false, // mois et événements passés en gris, à activer dans les filtres
   vacances: [],
   erreurVacances: null,
 };
@@ -143,10 +144,12 @@ function vueCalendrier(occs) {
         el("span", {}, v.nom))),
       duMois.length || vacancesDuMois.length ? null : el("li", { class: "vide" }, "—"));
 
-    grille.append(el("section", { class: "mois" },
+    const passe = etat.griserPasse && new Date(a, m + 1, 1) <= new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1);
+    grille.append(el("section", { class: passe ? "mois passe" : "mois" },
       el("h2", {}, NOMS_MOIS[m],
         etat.cycle === "scolaire" ? el("span", { class: "an" }, String(a)) : null,
-        duMois.length ? el("span", { class: "compte" }, String(duMois.length)) : null),
+        duMois.length ? el("span", { class: "compte" }, String(duMois.length)) : null,
+        passe ? el("span", { class: "etiquette-passe" }, "passé") : null),
       jours, liste));
   }
   return grille;
@@ -182,6 +185,8 @@ function texteRecap(p, occs) {
 
 function vueListe(occs) {
   const conteneur = el("div");
+  const maintenant = new Date();
+  const debutDuJour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
   const mois = moisDuCycle(etat.annee, etat.cycle);
   for (const p of periodes()) {
     const duPeriode = occs.filter(o => {
@@ -205,7 +210,8 @@ function vueListe(occs) {
             const vacances = vacancesDuJour(etat.vacances, o.debut);
             const meta = [heureDe(o.evt), lieuDe(o.evt), categorie(o.evt).nom,
               o.evt.responsable && `Responsable : ${o.evt.responsable}`].filter(Boolean).join(" · ");
-            return rendreModifiable(el("li", { class: "ligne" },
+            const passe = etat.griserPasse && o.fin < debutDuJour;
+            return rendreModifiable(el("li", { class: passe ? "ligne passe" : "ligne" },
               el("span", { class: "quand" }, plageDates(o, fmtLong)),
               el("span", { class: "titre" }, pastille(categorie(o.evt).couleur), o.titre),
               el("p", { class: "meta" }, meta,
@@ -292,6 +298,12 @@ function rendreFiltres(liste) {
   const entrees = Object.entries(etat.donnees.categories);
   if (etat.donnees.dimanches) entrees.unshift([CLE_DIMANCHES, etat.donnees.dimanches]);
   if (etat.vacances.length) entrees.push([CLE_VACANCES, { nom: "Vacances scolaires", couleur: COULEUR_VACANCES }]);
+  const griser = el("button", {
+    type: "button",
+    class: "filtre griser",
+    "aria-pressed": String(etat.griserPasse),
+    onclick: () => { etat.griserPasse = !etat.griserPasse; rendre(); },
+  }, el("span", { class: "pastille", style: "--c:var(--texte-doux)" }), "Griser le passé");
   zone.replaceChildren(...entrees.map(([cle, cat]) =>
     el("button", {
       type: "button",
@@ -302,7 +314,7 @@ function rendreFiltres(liste) {
         rendre();
       },
     }, cle === CLE_VACANCES ? el("span", { class: "pastille hachuree", style: `--c:${cat.couleur}` }) : pastille(cat.couleur),
-    cat.nom, el("span", { class: "compte" }, String(comptes[cle] || 0)))));
+    cat.nom, el("span", { class: "compte" }, String(comptes[cle] || 0)))), griser);
 }
 
 // Signification des couleurs : une ligne par catégorie qui a une "legende".

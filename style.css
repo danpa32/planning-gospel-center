@@ -195,6 +195,10 @@ button {
   opacity: .45;
 }
 
+/* Interrupteur, pas une catégorie : discret quand il est éteint, marqué quand il est allumé. */
+.filtre.griser { border-style: dashed; }
+.filtre.griser[aria-pressed="false"] { opacity: 1; color: var(--texte-doux); }
+.filtre.griser[aria-pressed="true"] { border-style: solid; border-color: var(--texte-doux); font-weight: 600; }
 
 .pastille {
   display: inline-block;
@@ -292,6 +296,28 @@ button {
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   padding: 14px;
+}
+
+.ligne.passe > * { opacity: .45; filter: grayscale(1); }
+.ligne.passe:hover > * { opacity: .8; }
+
+.mois.passe {
+  background: var(--fond);
+  border-style: dashed;
+}
+.mois.passe > :not(h2) { opacity: .45; filter: grayscale(1); }
+.mois.passe:hover > :not(h2) { opacity: .8; }
+.mois.passe h2 { color: var(--texte-doux); }
+.mois h2 .etiquette-passe {
+  float: right;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--texte-doux);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
 .mois h2 {
