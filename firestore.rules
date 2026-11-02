@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // MODÈLE : remplacer les adresses UNIQUEMENT dans la console Firebase
+    // (Firestore → Règles). Ne jamais mettre les vraies adresses dans ce fichier : le dépôt est public.
+    function estEditeur() {
+      return request.auth != null
+        && request.auth.token.email_verified
+        && request.auth.token.email.lower() in [
+          'ADRESSE_1', 'ADRESSE_2', 'ADRESSE_3', 'ADRESSE_4', 'ADRESSE_5'
+        ];
+    }
+
+    // Le planning et le tableau des idées : lisibles par tous, modifiables par la liste ci-dessus.
+    // Chaque enregistrement augmente la version de 1, ce qui empêche d'écraser le travail d'un autre.
+    match /planning/{fichier} {
+      allow read: if fichier in ['evenements', 'idees'];
+      allow create, update: if estEditeur()
+        && fichier in ['evenements', 'idees']
+        && request.resource.data.keys().hasOnly(['json', 'version'])
+        && request.resource.data.json is string
+        && request.resource.data.json.size() < 500000
+        && request.resource.data.version == (resource == null ? 1 : resource.data.version + 1);
+    }
+
+    // Sert seulement à vérifier qu'un compte est autorisé : la lecture passe pour les éditeurs.
+    match /editeurs/{adresse} {
+      allow read: if estEditeur() && adresse == request.auth.token.email.lower();
+    }
+  }
+}

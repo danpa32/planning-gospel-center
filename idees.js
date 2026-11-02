@@ -36,9 +36,8 @@ const tableau = {
   cycle: lireCyclePrefere(),
   secteur: null,
 };
-const editionIdees = { actif: false, sha: null, modifie: false, message: "", erreur: false };
-const autoIdees = enregistrementAuto(FICHIER_IDEES, editionIdees, () => tableau.donnees,
-  "Mise à jour du tableau des idées depuis l'interface web", () => rendreEditeurIdees());
+const editionIdees = { actif: false, version: null, modifie: false, message: "", erreur: false };
+const autoIdees = enregistrementAuto(FICHIER_IDEES, editionIdees, () => tableau.donnees, () => rendreEditeurIdees());
 
 // ---------- Données ----------
 
@@ -277,8 +276,7 @@ function rendreEditeurIdees() {
         el("button", { type: "button", class: "principal", onclick: () => ouvrirIdee(null) }, "+ Nouvelle idée"),
         el("button", { type: "button", class: "secondaire", onclick: () => telechargerJson(FICHIER_IDEES, tableau.donnees) },
           "Télécharger le fichier"),
-        EN_LOCAL ? null : el("button", { type: "button", class: "secondaire", onclick: () => ouvrirReglages(entrerEditionIdees) },
-          "Réglages GitHub"),
+        boutonCompte(),
         el("button", { type: "button", class: "secondaire", onclick: quitterEditionIdees }, "Quitter"))),
     el("div", { class: "boutons recolte" },
       el("span", {}, `Préparer ${libelleCycle(tableau.annee, tableau.cycle)} :`),
@@ -292,12 +290,12 @@ async function entrerEditionIdees() {
   editionIdees.actif = true;
   if (enregistrementPossible() && !editionIdees.modifie) {
     try {
-      const { donnees, sha } = await chargerJsonEdition(FICHIER_IDEES);
+      const { donnees, version } = await chargerJsonEdition(FICHIER_IDEES);
       tableau.donnees = normaliser(donnees);
-      editionIdees.sha = sha;
+      editionIdees.version = version;
       editionIdees.message = "";
     } catch (e) {
-      editionIdees.message = `Impossible de lire le fichier ${EN_LOCAL ? "local" : "sur GitHub"} : ${e.message}.`;
+      editionIdees.message = `Impossible de lire le tableau ${EN_LOCAL ? "local" : "en ligne"} : ${e.message}.`;
     }
   }
   rendreTableau();
@@ -429,6 +427,7 @@ async function demarrerIdees() {
   window.addEventListener("beforeunload", e => {
     if (editionIdees.modifie) e.preventDefault();
   });
+  suivreSession(() => { if (editionIdees.actif) entrerEditionIdees(); });
   rendreDemarche();
   rendreTableau();
   if (edition) entrerEditionIdees();

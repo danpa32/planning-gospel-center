@@ -1,8 +1,6 @@
 // Code partagé par le planning (index.html) et le tableau des idées (idees.html) :
-// construction du DOM, lecture/écriture des fichiers JSON (sur GitHub, ou en local avec serveur.py),
+// construction du DOM, lecture/écriture des fichiers JSON (dans Firebase, ou en local avec serveur.py),
 // enregistrement automatique, champs de formulaire.
-
-const STOCKAGE = "planning-github";
 
 // ---------- DOM ----------
 
@@ -40,75 +38,88 @@ function legendeRepliable(titre, ...contenu) {
   return details;
 }
 
-// ---------- Réglages GitHub (gardés dans ce navigateur uniquement) ----------
+// ---------- Firebase : lecture publique, écriture réservée aux comptes Google autorisés ----------
 
-function lireReglages() {
-  let r = {};
-  try { r = JSON.parse(localStorage.getItem(STOCKAGE)) || {}; } catch { /* stockage indisponible */ }
-  const pages = /^([^.]+)\.github\.io$/.exec(location.hostname);
-  if (pages && !r.depot) {
-    const dossier = location.pathname.split("/")[1];
-    r.depot = `${pages[1]}/${dossier || location.hostname}`;
-  }
-  r.branche ||= "main";
-  return r;
-}
+// Chaque fichier JSON est un document planning/<nom> : { json, version }.
+// La liste des comptes autorisés se trouve uniquement dans les règles Firestore (console Firebase).
+const SDK_FIREBASE = "https://www.gstatic.com/firebasejs/10.12.2";
+const FIREBASE_CONFIGURE = typeof FIREBASE !== "undefined" && Boolean(FIREBASE.apiKey);
 
-function ecrireReglages(r) {
-  try { localStorage.setItem(STOCKAGE, JSON.stringify(r)); } catch { /* stockage indisponible */ }
-}
+// Sur localhost, serveur.py enregistre les fichiers dans le dossier local/ ; ailleurs, on écrit dans Firebase.
+// http://localhost:8000/?firebase utilise le vrai Firebase, pour tester la connexion avant de publier.
+const EN_LOCAL = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)
+  && !new URLSearchParams(location.search).has("firebase");
 
-function githubConfigure() {
-  const r = lireReglages();
-  return Boolean(r.depot && r.jeton);
-}
+let firebase = null;
+const session = { utilisateur: null, autorise: false, prete: false };
+const suiviSession = [];
 
-// ---------- API GitHub ----------
-
-async function apiGithub(fichier, methode, corps) {
-  const { depot, branche, jeton } = lireReglages();
-  const url = `https://api.github.com/repos/${depot}/contents/${fichier}` +
-    (methode === "GET" ? `?ref=${encodeURIComponent(branche)}` : "");
-  const rep = await fetch(url, {
-    method: methode,
-    cache: "no-store",
-    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${jeton}` },
-    body: corps && JSON.stringify(corps),
+function chargerFirebase() {
+  firebase ||= Promise.all([
+    import(`${SDK_FIREBASE}/firebase-app.js`),
+    import(`${SDK_FIREBASE}/firebase-firestore.js`),
+    import(`${SDK_FIREBASE}/firebase-auth.js`),
+  ]).then(([{ initializeApp }, fs, au]) => {
+    const app = initializeApp(FIREBASE);
+    const fb = { db: fs.getFirestore(app), auth: au.getAuth(app), fs, au };
+    au.onAuthStateChanged(fb.auth, async utilisateur => {
+      session.utilisateur = utilisateur;
+      session.autorise = utilisateur ? await compteAutorise(fb, utilisateur) : false;
+      session.prete = true;
+      suiviSession.forEach(f => f());
+    });
+    return fb;
   });
-  if (!rep.ok) {
-    const messages = {
-      401: "jeton invalide ou expiré",
-      403: "le jeton n'a pas le droit d'écrire dans ce dépôt",
-      404: `dépôt « ${depot} » ou fichier ${fichier} introuvable (ou jeton sans accès)`,
-      409: "le fichier a été modifié entre-temps par quelqu'un d'autre : rechargez la page",
-      422: "le fichier a été modifié entre-temps par quelqu'un d'autre : rechargez la page",
-    };
-    throw new Error(messages[rep.status] || `erreur GitHub ${rep.status}`);
-  }
-  return rep.json();
+  return firebase;
 }
 
-// Lecture publique du fichier dans le dépôt (sans jeton pour les visiteurs).
-// Renvoie null si le dépôt est inconnu ou injoignable, pour se rabattre sur le fichier publié.
-async function lireFichierDepot(fichier) {
-  const { depot, branche, jeton } = lireReglages();
-  if (!depot) return null;
-  const headers = { Accept: "application/vnd.github.raw+json" };
-  if (jeton) headers.Authorization = `Bearer ${jeton}`;
+// Les règles n'autorisent la lecture de editeurs/<adresse> qu'aux comptes de la liste :
+// si la lecture passe (même document absent), le compte peut modifier le planning.
+async function compteAutorise(fb, utilisateur) {
   try {
-    const rep = await fetch(
-      `https://api.github.com/repos/${depot}/contents/${fichier}?ref=${encodeURIComponent(branche)}`,
-      { cache: "no-cache", headers });
-    return rep.ok ? await rep.text() : null;
+    await fb.fs.getDoc(fb.fs.doc(fb.db, "editeurs", utilisateur.email.toLowerCase()));
+    return true;
   } catch {
+    return false;
+  }
+}
+
+// f() est appelée à chaque connexion ou déconnexion.
+function suivreSession(f) {
+  suiviSession.push(f);
+}
+
+async function seConnecter() {
+  const fb = await chargerFirebase();
+  await fb.au.signInWithPopup(fb.auth, new fb.au.GoogleAuthProvider());
+}
+
+async function seDeconnecter() {
+  const fb = await chargerFirebase();
+  await fb.au.signOut(fb.auth);
+}
+
+function documentFirebase(fb, fichier) {
+  return fb.fs.doc(fb.db, "planning", fichier.replace(/\.json$/, ""));
+}
+
+// Renvoie le texte JSON enregistré dans Firebase, ou null s'il n'existe pas encore ou est injoignable.
+async function lireFichierFirebase(fichier) {
+  if (!FIREBASE_CONFIGURE) return null;
+  try {
+    const fb = await chargerFirebase();
+    const d = await fb.fs.getDoc(documentFirebase(fb, fichier));
+    return d.exists() ? d.data().json : null;
+  } catch (e) {
+    console.error(fichier, e);
     return null;
   }
 }
 
-// Le dépôt d'abord (toujours à jour), sinon le fichier publié à côté de la page.
+// Firebase d'abord (toujours à jour), sinon le fichier publié à côté de la page.
 // En local, toujours le fichier servi par serveur.py.
 async function lireJson(fichier) {
-  let texte = EN_LOCAL ? null : await lireFichierDepot(fichier);
+  let texte = EN_LOCAL ? null : await lireFichierFirebase(fichier);
   if (texte === null) {
     const rep = await fetch(fichier, { cache: "no-cache" });
     if (!rep.ok) throw new Error(`fichier introuvable (${rep.status})`);
@@ -117,77 +128,83 @@ async function lireJson(fichier) {
   return JSON.parse(texte);
 }
 
-function versBase64(texte) {
-  const octets = new TextEncoder().encode(texte);
-  let binaire = "";
-  for (const o of octets) binaire += String.fromCharCode(o);
-  return btoa(binaire);
-}
-
-function depuisBase64(b64) {
-  const binaire = atob(b64.replace(/\s/g, ""));
-  return new TextDecoder().decode(Uint8Array.from(binaire, c => c.charCodeAt(0)));
-}
-
-// Renvoie { donnees, sha } ; le sha est nécessaire pour réécrire le fichier ensuite.
-async function chargerJsonGithub(fichier) {
-  const rep = await apiGithub(fichier, "GET");
-  return { donnees: JSON.parse(depuisBase64(rep.content)), sha: rep.sha };
-}
-
-// Renvoie le nouveau sha du fichier.
-async function enregistrerJsonGithub(fichier, donnees, sha, message) {
-  const { branche } = lireReglages();
-  const rep = await apiGithub(fichier, "PUT", {
-    message,
-    content: versBase64(texteJson(donnees)),
-    sha,
-    branch: branche,
-  });
-  return rep.content.sha;
-}
-
-// ---------- Où enregistrer : serveur local de test ou dépôt GitHub ----------
-
-// Sur localhost, serveur.py enregistre les fichiers dans le dossier local/ ; ailleurs, on écrit dans le dépôt.
-const EN_LOCAL = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+// ---------- Où enregistrer : serveur local de test ou Firebase ----------
 
 function enregistrementPossible() {
-  return EN_LOCAL || githubConfigure();
+  return EN_LOCAL || session.autorise;
 }
 
 function decrireStockage() {
   if (EN_LOCAL) return "Test en local : les modifications sont enregistrées dans le dossier local/.";
-  const r = lireReglages();
-  return githubConfigure()
-    ? `Dépôt GitHub : ${r.depot} (${r.branche})`
-    : "GitHub non configuré : les modifications peuvent seulement être téléchargées.";
+  if (!FIREBASE_CONFIGURE) return "Firebase non configuré : les modifications peuvent seulement être téléchargées.";
+  const u = session.utilisateur;
+  if (!session.prete) return "Connexion…";
+  if (!u) return "Connectez-vous avec votre compte Google pour enregistrer vos modifications.";
+  if (!session.autorise) return `Le compte ${u.email} n'est pas autorisé à modifier le planning.`;
+  return `Connecté : ${u.displayName || u.email}`;
 }
 
-// Renvoie { donnees, sha } ; en local, il n'y a pas de sha.
-async function chargerJsonEdition(fichier) {
-  if (!EN_LOCAL) return chargerJsonGithub(fichier);
-  return { donnees: await lireJson(fichier), sha: null };
-}
-
-async function enregistrerJsonEdition(fichier, donnees, sha, message) {
-  if (!EN_LOCAL) return enregistrerJsonGithub(fichier, donnees, sha, message);
-  let rep;
-  try {
-    rep = await fetch(fichier, { method: "PUT", headers: { "Content-Type": "application/json" }, body: texteJson(donnees) });
-  } catch {
-    throw new Error("serveur local injoignable");
+// Bouton de connexion du panneau d'édition ; une fois connecté, suivreSession() recharge les données.
+function boutonCompte() {
+  if (EN_LOCAL || !FIREBASE_CONFIGURE || !session.prete) return null;
+  if (!session.utilisateur) {
+    return el("button", { type: "button", class: "principal", onclick: () => seConnecter().catch(console.error) },
+      "Se connecter avec Google");
   }
-  if (rep.status === 501) throw new Error("ce serveur n'enregistre pas, lancez « python3 serveur.py »");
-  if (!rep.ok) throw new Error(`erreur du serveur local ${rep.status}`);
-  return null;
+  return el("button", { type: "button", class: "secondaire", onclick: seDeconnecter }, "Se déconnecter");
+}
+
+// Renvoie { donnees, version } ; la version sert à détecter une modification faite entre-temps
+// par quelqu'un d'autre. Tant que Firebase est vide, on part du fichier publié (version 0).
+async function chargerJsonEdition(fichier) {
+  if (EN_LOCAL) return { donnees: await lireJson(fichier), version: null };
+  const fb = await chargerFirebase();
+  const d = await fb.fs.getDoc(documentFirebase(fb, fichier));
+  if (!d.exists()) {
+    const rep = await fetch(fichier, { cache: "no-cache" });
+    if (!rep.ok) throw new Error(`fichier introuvable (${rep.status})`);
+    return { donnees: await rep.json(), version: 0 };
+  }
+  const { json, version } = d.data();
+  return { donnees: JSON.parse(json), version };
+}
+
+// Renvoie la nouvelle version.
+async function enregistrerJsonEdition(fichier, donnees, version) {
+  if (EN_LOCAL) {
+    let rep;
+    try {
+      rep = await fetch(fichier, { method: "PUT", headers: { "Content-Type": "application/json" }, body: texteJson(donnees) });
+    } catch {
+      throw new Error("serveur local injoignable");
+    }
+    if (rep.status === 501) throw new Error("ce serveur n'enregistre pas, lancez « python3 serveur.py »");
+    if (!rep.ok) throw new Error(`erreur du serveur local ${rep.status}`);
+    return null;
+  }
+  const fb = await chargerFirebase();
+  const ref = documentFirebase(fb, fichier);
+  try {
+    return await fb.fs.runTransaction(fb.db, async t => {
+      const d = await t.get(ref);
+      if ((d.exists() ? d.data().version : 0) !== version) {
+        throw new Error("le planning a été modifié entre-temps par quelqu'un d'autre : rechargez la page");
+      }
+      t.set(ref, { json: texteJson(donnees), version: version + 1 });
+      return version + 1;
+    });
+  } catch (e) {
+    if (e.code === "permission-denied") throw new Error("ce compte n'a pas le droit de modifier le planning");
+    if (e.code === "unavailable") throw new Error("pas de connexion internet");
+    throw e;
+  }
 }
 
 // Enregistre automatiquement peu après chaque modification. Les modifications rapprochées
 // (plusieurs champs, un glisser-déposer) sont regroupées en un seul enregistrement, et un seul
-// enregistrement a lieu à la fois, car GitHub exige le sha de la version précédente.
-// etatEdition : { modifie, sha, message, erreur } ; afficher() redessine le panneau d'édition.
-function enregistrementAuto(fichier, etatEdition, lireDonnees, message, afficher) {
+// enregistrement a lieu à la fois, car chacun part de la version enregistrée par le précédent.
+// etatEdition : { modifie, version, message, erreur } ; afficher() redessine le panneau d'édition.
+function enregistrementAuto(fichier, etatEdition, lireDonnees, afficher) {
   let minuterie = null;
   let enCours = null;
 
@@ -199,11 +216,10 @@ function enregistrementAuto(fichier, etatEdition, lireDonnees, message, afficher
     etatEdition.erreur = false;
     etatEdition.message = "Enregistrement…";
     afficher();
-    enCours = enregistrerJsonEdition(fichier, lireDonnees(), etatEdition.sha, message)
-      .then(sha => {
-        etatEdition.sha = sha;
-        etatEdition.message = etatEdition.modifie ? "" :
-          EN_LOCAL ? "Enregistré ✓" : "Enregistré ✓ Le site public sera à jour dans une minute environ.";
+    enCours = enregistrerJsonEdition(fichier, lireDonnees(), etatEdition.version)
+      .then(version => {
+        etatEdition.version = version;
+        etatEdition.message = etatEdition.modifie ? "" : "Enregistré ✓";
       })
       .catch(e => {
         etatEdition.modifie = true;
@@ -227,7 +243,7 @@ function enregistrementAuto(fichier, etatEdition, lireDonnees, message, afficher
 function statutEdition(etatEdition, auto) {
   const texte = etatEdition.message || (etatEdition.modifie
     ? (enregistrementPossible() ? "Enregistrement…" : "Modifications non enregistrées.")
-    : "Les modifications sont enregistrées automatiquement.");
+    : (enregistrementPossible() ? "Les modifications sont enregistrées automatiquement." : ""));
   return el("p", { class: etatEdition.modifie ? "statut modifie" : "statut" }, texte,
     etatEdition.erreur
       ? el("button", { type: "button", class: "lien", onclick: () => auto.maintenant() }, " Réessayer")
@@ -298,33 +314,4 @@ function boutonConfirmer(libelle, action) {
     setTimeout(() => { delete bouton.dataset.confirmer; bouton.textContent = libelle; }, 3000);
   });
   return bouton;
-}
-
-// ---------- Réglages ----------
-
-function ouvrirReglages(apresEnregistrement) {
-  const r = lireReglages();
-  const formulaire = el("form", { method: "dialog" },
-    el("h2", {}, "Réglages GitHub"),
-    el("p", {}, "Pour enregistrer, il faut un jeton GitHub avec le droit d'écrire dans le dépôt. ",
-      el("a", { href: "https://github.com/settings/personal-access-tokens/new", target: "_blank", rel: "noopener" },
-        "Créer un jeton"),
-      " : choisir « Only select repositories » → ce dépôt, puis Permissions → Contents → « Read and write »."),
-    champ("Dépôt", entree("text", r.depot, { name: "depot", placeholder: "compte/depot", required: "" })),
-    champ("Branche", entree("text", r.branche, { name: "branche", required: "" })),
-    champ("Jeton", entree("password", r.jeton, { name: "jeton", placeholder: "github_pat_…", autocomplete: "off" }),
-      "Le jeton reste enregistré dans ce navigateur uniquement."),
-    el("div", { class: "boutons" },
-      el("button", { type: "button", class: "secondaire", onclick: () => dialogue.close() }, "Annuler"),
-      el("button", { type: "submit", class: "principal" }, "Enregistrer")));
-
-  formulaire.addEventListener("submit", async e => {
-    e.preventDefault();
-    const d = new FormData(formulaire);
-    ecrireReglages({ depot: d.get("depot").trim(), branche: d.get("branche").trim(), jeton: d.get("jeton").trim() });
-    dialogue.close();
-    await apresEnregistrement();
-  });
-
-  const dialogue = ouvrirDialogue(formulaire);
 }

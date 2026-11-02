@@ -1,10 +1,9 @@
 // Mode édition : modifier les événements depuis la page. Chaque modification est enregistrée
-// automatiquement dans evenements.json sur GitHub (API GitHub + jeton personnel), ou en local avec serveur.py.
+// automatiquement dans Firebase (comptes Google autorisés), ou en local avec serveur.py.
 
 const FICHIER = "evenements.json";
-const edition = { actif: false, sha: null, modifie: false, message: "", erreur: false };
-const autoPlanning = enregistrementAuto(FICHIER, edition, () => etat.donnees,
-  "Mise à jour du planning depuis l'interface web", () => rendreEditeur());
+const edition = { actif: false, version: null, modifie: false, message: "", erreur: false };
+const autoPlanning = enregistrementAuto(FICHIER, edition, () => etat.donnees, () => rendreEditeur());
 
 const TYPES_REGLE = {
   chaque_annee: "Même date chaque année",
@@ -15,11 +14,11 @@ const TYPES_REGLE = {
 };
 
 async function chargerPourEdition() {
-  const { donnees, sha } = await chargerJsonEdition(FICHIER);
+  const { donnees, version } = await chargerJsonEdition(FICHIER);
   etat.donnees = donnees;
   etat.donnees.categories ||= {};
   etat.donnees.evenements ||= [];
-  edition.sha = sha;
+  edition.version = version;
 }
 
 // ---------- Panneau d'édition ----------
@@ -61,8 +60,7 @@ function rendreEditeur() {
       el("div", { class: "boutons" },
         el("button", { type: "button", class: "principal", onclick: () => ouvrirFormulaire(null) }, "+ Ajouter un événement"),
         el("button", { type: "button", class: "secondaire", onclick: () => telechargerJson(FICHIER, etat.donnees) }, "Télécharger le fichier"),
-        EN_LOCAL ? null
-          : el("button", { type: "button", class: "secondaire", onclick: () => ouvrirReglages(entrerEdition) }, "Réglages GitHub"),
+        boutonCompte(),
         el("button", { type: "button", class: "secondaire", onclick: quitterEdition }, "Quitter"))),
     // Repliée par défaut : on travaille directement dans le calendrier.
     el("details", { class: "toutes-definitions", ...(edition.listeOuverte ? { open: "" } : {}),
@@ -78,7 +76,7 @@ async function entrerEdition() {
       await chargerPourEdition();
       edition.message = "";
     } catch (e) {
-      edition.message = `Impossible de lire le fichier ${EN_LOCAL ? "local" : "sur GitHub"} : ${e.message}.`;
+      edition.message = `Impossible de lire le planning ${EN_LOCAL ? "local" : "en ligne"} : ${e.message}.`;
     }
   }
   rendre();
@@ -266,5 +264,6 @@ function initEditeur(ouvrirEdition) {
   window.addEventListener("beforeunload", e => {
     if (edition.modifie) e.preventDefault();
   });
+  suivreSession(() => { if (edition.actif) entrerEdition(); });
   if (ouvrirEdition) entrerEdition();
 }

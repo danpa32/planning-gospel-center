@@ -44,7 +44,7 @@ rattachée à un **mois** : elle apparaît donc dans les deux vues.
   d'`evenements.json` de l'année affichée qui n'y sont pas encore.
 
 Le tableau a quatre colonnes : *Idées*, *Retenues*, *Au planning*, *Mises de côté*. En mode édition
-(**Modifier le tableau**, même jeton GitHub que le planning), on ajoute ou modifie une idée et on glisse
+(**Modifier le tableau**, même connexion Google que le planning), on ajoute ou modifie une idée et on glisse
 les cartes d'une colonne à l'autre. La couleur d'une carte reprend les catégories d'`evenements.json`
 (niveau d'implication des équipes). En haut, chaque secteur affiche le nombre d'idées qui l'impliquent ;
 un clic filtre le tableau sur ce secteur.
@@ -78,6 +78,8 @@ ou `regulier`. `mois` va de 1 à 12. La liste `secteurs` se modifie directement 
 ## Mettre en ligne sur GitHub Pages
 
 1. Créer un dépôt sur GitHub et y envoyer ces fichiers (`index.html`, `idees.html`, les fichiers `.js`, `style.css`, `evenements.json`, `idees.json`).
+   Les données modifiées depuis la page sont dans Firebase (voir plus bas) ; les fichiers JSON du dépôt
+   servent de point de départ et de secours si Firebase est injoignable.
 2. Dans le dépôt : **Settings → Pages → Source : Deploy from a branch**, branche `main`, dossier `/ (root)`.
 3. Après une minute, le site est disponible à `https://<compte>.github.io/<dépôt>/`.
 
@@ -86,26 +88,39 @@ ou `regulier`. `mois` va de 1 à 12. La liste `secteurs` se modifie directement 
 En bas de la page, cliquer sur **Modifier le planning** : un panneau permet d'ajouter, modifier ou supprimer
 les événements, avec un aperçu immédiat dans le calendrier. Ensuite :
 
-- Chaque modification est **enregistrée automatiquement** dans `evenements.json` sur le dépôt, environ une
-  seconde après (les modifications rapprochées sont regroupées). Le site public est à jour environ une minute
-  plus tard. En cas d'échec, le panneau l'indique et propose **Réessayer**. Le tableau des idées fonctionne
-  de la même manière avec `idees.json`.
-- **Télécharger le fichier** donne le `evenements.json` modifié (utile sans accès GitHub).
+- Chaque modification est **enregistrée automatiquement** dans Firebase environ une seconde après (les
+  modifications rapprochées sont regroupées) ; le site public est à jour tout de suite. En cas d'échec,
+  le panneau l'indique et propose **Réessayer**. Si quelqu'un d'autre a enregistré entre-temps, le panneau
+  demande de recharger la page plutôt que d'écraser son travail. Le tableau des idées fonctionne de la même
+  manière.
+- **Télécharger le fichier** donne le JSON à jour (sauvegarde, ou pour mettre à jour le fichier du dépôt).
 
-La première fois, il faut renseigner les **Réglages GitHub** :
+Pour enregistrer, il faut **se connecter avec un compte Google autorisé** (bouton dans le panneau). Tout le
+monde peut lire le planning ; seuls les comptes listés dans les règles Firestore peuvent le modifier.
 
-1. Créer un jeton sur <https://github.com/settings/personal-access-tokens/new> :
-   « Repository access » → *Only select repositories* → ce dépôt, puis
-   « Permissions » → *Contents* → **Read and write**.
-2. Coller le jeton dans *Réglages GitHub* (le dépôt est rempli automatiquement sur GitHub Pages).
+### Mettre en route Firebase (une seule fois)
 
-Le jeton reste dans le navigateur de la personne qui édite ; il n'est jamais publié. Chaque personne qui
-modifie le planning doit avoir accès au dépôt et créer son propre jeton.
+1. Sur <https://console.firebase.google.com>, **Ajouter un projet** (Google Analytics : inutile).
+2. **Build → Firestore Database → Créer une base de données**, emplacement `eur3 (europe-west)`,
+   mode production.
+3. **Build → Authentication → Commencer → Google** : activer, puis enregistrer.
+   Dans **Authentication → Paramètres → Domaines autorisés**, ajouter `<compte>.github.io`.
+4. **Paramètres du projet → Vos applications → Web (`</>`)** : créer l'application, puis recopier
+   `apiKey`, `authDomain`, `projectId` et `appId` dans **`firebase-config.js`**. Ces valeurs ne sont pas
+   secrètes.
+5. **Firestore → Règles** : coller le contenu de `firestore.rules` en y remplaçant `ADRESSE_1`…`ADRESSE_5`
+   par les adresses Gmail des personnes autorisées (en minuscules), puis **Publier**. Les vraies adresses
+   restent dans la console : ne pas les mettre dans le fichier du dépôt, qui est public.
+
+Pour ajouter ou retirer une personne, il suffit de modifier la liste dans les règles de la console.
+
+Au premier enregistrement, le planning et le tableau des idées sont copiés depuis les fichiers JSON du dépôt.
 
 ## Modifier le fichier directement
 
-Tout se trouve dans **`evenements.json`**. On peut aussi l'éditer directement sur github.com (icône crayon),
-puis « Commit changes » : le site se met à jour en une minute environ.
+Avant la mise en route de Firebase, tout se trouve dans **`evenements.json`**, qu'on peut éditer
+directement sur github.com (icône crayon). Une fois Firebase utilisé, c'est la version de Firebase qui
+s'affiche : modifier le fichier du dépôt n'a plus d'effet, sauf si Firebase est injoignable.
 
 Si le fichier contient une erreur de syntaxe (virgule oubliée, guillemet manquant), la page l'affiche.
 On peut vérifier le fichier sur [jsonlint.com](https://jsonlint.com).
@@ -201,7 +216,10 @@ Les pages lisent les fichiers JSON, elles doivent donc être servies par un peti
 python3 serveur.py
 ```
 
-puis ouvrir <http://localhost:8000>. En local, rien n'est envoyé sur GitHub : les modifications du mode
+puis ouvrir <http://localhost:8000>. En local, rien n'est envoyé à Firebase : les modifications du mode
 édition sont enregistrées automatiquement dans le dossier `local/` (ignoré par git), et les pages lisent
 ensuite ces copies. Les vrais `evenements.json` et `idees.json` ne sont pas touchés. Pour repartir des
 vraies données, supprimer le dossier `local/`.
+
+Pour tester la connexion Google et l'enregistrement dans le vrai Firebase avant de publier, ouvrir
+<http://localhost:8000/?firebase> (attention : les modifications sont alors réelles).
