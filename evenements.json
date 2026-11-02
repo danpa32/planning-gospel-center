@@ -70,6 +70,11 @@
       "categorie": "parcours",
       "quand": { "jour": "dimanche", "rang": 2, "mois": 1, "repeter": 5 },
       "description": "5 sessions le dimanche, entre Noël et Pâques."
+    },
+    {
+      "titre": "Spectacle des enfants",
+      "categorie": "evenement",
+      "quand": { "jour": "dimanche", "rang": 3, "mois": 12 }
     }
   ]
 }
