@@ -35,6 +35,16 @@ function dimanchesVisibles() {
   return Boolean(etat.donnees.dimanches) && !etat.masquees.has(CLE_DIMANCHES);
 }
 
+// Dimanches sans culte du cycle affiché (règles "sauf" de "dimanches", ex. le dernier dimanche de décembre).
+function dimanchesSansCulte() {
+  const { debut, fin } = bornesCycle(etat.annee, etat.cycle);
+  const annees = [];
+  for (let a = debut.getFullYear(); a <= fin.getFullYear(); a++) annees.push(a);
+  return new Set((etat.donnees.dimanches?.sauf || [])
+    .flatMap(q => annees.flatMap(a => datesDeBase(q, a)))
+    .map(d => d.getTime()));
+}
+
 // Les vacances scolaires sont hachurées dans le calendrier (liste "vacances" d'evenements.json).
 const CLE_VACANCES = "_vacances";
 
@@ -91,6 +101,7 @@ function vueCalendrier(occs) {
 
   const vacances = vacancesVisibles() ? vacancesDuCycle() : [];
   const bornes = bornesCycle(etat.annee, etat.cycle);
+  const sansCulte = dimanchesSansCulte();
 
   for (const { annee: a, mois: m } of moisDuCycle(etat.annee, etat.cycle)) {
     const jours = el("div", { class: "jours" }, ENTETES_JOURS.map(j => el("span", { class: "entete-jour" }, j)));
@@ -103,7 +114,8 @@ function vueCalendrier(occs) {
       const date = new Date(a, m, d);
       const duJour = occs.filter(o => date >= o.debut && date <= o.fin);
       const classes = ["jour"];
-      const dimancheOrdinaire = date.getDay() === 0 && !duJour.length && dimanchesVisibles();
+      const dimancheOrdinaire = date.getDay() === 0 && !duJour.length && dimanchesVisibles()
+        && !sansCulte.has(date.getTime());
       if (date.getDay() === 0) classes.push("dimanche");
       if (duJour.length) classes.push("occupe");
       if (dimancheOrdinaire) classes.push("culte");
@@ -283,9 +295,10 @@ function afficherErreurs(erreurs) {
 
 function nombreDimanches() {
   const { debut, fin } = bornesCycle(etat.annee, etat.cycle);
+  const sansCulte = dimanchesSansCulte();
   let n = 0;
   for (let d = debut; d <= fin; d = ajouterJours(d, 1)) {
-    if (d.getDay() === 0) n++;
+    if (d.getDay() === 0 && !sansCulte.has(d.getTime())) n++;
   }
   return n;
 }
@@ -346,6 +359,12 @@ function rendre() {
   document.getElementById("choix-periode").hidden = etat.vue !== "liste";
 
   const { liste, erreurs } = occurrences();
+  try {
+    dimanchesSansCulte();
+  } catch (e) {
+    etat.donnees.dimanches.sauf = [];
+    erreurs.push(`Dimanches sans culte ("sauf") : ${e.message}`);
+  }
   afficherErreurs(etat.erreurVacances ? [...erreurs, etat.erreurVacances] : erreurs);
   rendreFiltres(liste);
   rendreLegende();

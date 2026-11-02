@@ -69,15 +69,17 @@ function datesDeBase(q, annee) {
   if ("paques" in q) {
     return [ajouterJours(paques(annee), Number(q.paques))];
   }
-  if ("proche_de" in q) {
-    // Le jour de la semaine demandé le plus proche d'une date (ex. le samedi le plus proche d'Halloween).
-    const m = /^(\d{2})-(\d{2})$/.exec(q.proche_de);
-    if (!m) throw new Error(`"proche_de" doit être au format MM-JJ (ex. "10-31")`);
+  if ("proche_de" in q || "a_partir_de" in q) {
+    // "proche_de" : le jour de la semaine demandé le plus proche d'une date (ex. le dimanche le plus proche d'Halloween).
+    // "a_partir_de" : ce jour-là s'il tombe le bon jour de la semaine, sinon le suivant (ex. le dimanche dès le 3 février).
+    const cle = "proche_de" in q ? "proche_de" : "a_partir_de";
+    const m = /^(\d{2})-(\d{2})$/.exec(q[cle]);
+    if (!m) throw new Error(`"${cle}" doit être au format MM-JJ (ex. "10-31")`);
     const jourSemaine = JOURS[String(q.jour).toLowerCase()];
     if (jourSemaine === undefined) throw new Error(`jour « ${q.jour} » inconnu`);
     const repere = new Date(annee, +m[1] - 1, +m[2]);
     let ecart = (jourSemaine - repere.getDay() + 7) % 7;
-    if (ecart > 3) ecart -= 7;
+    if (cle === "proche_de" && ecart > 3) ecart -= 7;
     return [ajouterJours(repere, ecart)];
   }
   if ("jour" in q) {
@@ -122,6 +124,7 @@ function decrireRegle(evt) {
     const n = Number(q.paques);
     texte = n === 0 ? "Pâques" : `Pâques ${n > 0 ? "+" : "−"} ${Math.abs(n)} jour${Math.abs(n) > 1 ? "s" : ""}`;
   } else if ("proche_de" in q) texte = `${q.jour} le plus proche du ${nomDateMoisJour(q.proche_de)}`;
+  else if ("a_partir_de" in q) texte = `1er ${q.jour} à partir du ${nomDateMoisJour(q.a_partir_de)}`;
   else if ("jour" in q) {
     const mois = listeMois(q.mois);
     texte = `${RANGS[q.rang] || q.rang} ${q.jour} ${/^[aeiouy]/.test(mois) ? "d'" : "de "}${mois}`;
