@@ -9,11 +9,20 @@ Les dates se recalculent automatiquement pour chaque année (Pâques, « 2e dima
 - **Exporter .ics** : télécharge l'année dans un fichier calendrier (Google Agenda, Outlook, Apple…).
 - **Imprimer** : version papier / PDF.
 
-Les liens sont partageables : `…/#annee=2027&vue=liste&par=semestre`.
+Deux découpages de l'année, au choix en haut de page (le choix est retenu dans le navigateur) :
+
+- **Janv. – déc.** : l'année civile.
+- **Juil. – juin** : l'année scolaire, par exemple 2026–2027 = juillet 2026 à juin 2027.
+
+Les **vacances scolaires vaudoises** sont hachurées dans le calendrier, dans les deux vues. Dans la liste,
+un événement qui tombe pendant des vacances est signalé en rouge.
+
+Les liens sont partageables : `…/#annee=2026&cycle=scolaire&vue=liste&par=semestre`
+(`annee` est la première année : 2026 pour 2026–2027).
 
 ## Mettre en ligne sur GitHub Pages
 
-1. Créer un dépôt sur GitHub et y envoyer ces fichiers (`index.html`, `app.js`, `style.css`, `evenements.json`).
+1. Créer un dépôt sur GitHub et y envoyer ces fichiers (`index.html`, les fichiers `.js`, `style.css`, `evenements.json`).
 2. Dans le dépôt : **Settings → Pages → Source : Deploy from a branch**, branche `main`, dossier `/ (root)`.
 3. Après une minute, le site est disponible à `https://<compte>.github.io/<dépôt>/`.
 
@@ -22,8 +31,9 @@ Les liens sont partageables : `…/#annee=2027&vue=liste&par=semestre`.
 En bas de la page, cliquer sur **Modifier le planning** : un panneau permet d'ajouter, modifier ou supprimer
 les événements, avec un aperçu immédiat dans le calendrier. Ensuite :
 
-- **Enregistrer sur GitHub** écrit directement `evenements.json` dans le dépôt ; le site public est à jour
-  environ une minute plus tard.
+- Chaque modification est **enregistrée automatiquement** dans `evenements.json` sur le dépôt, environ une
+  seconde après (les modifications rapprochées sont regroupées). Le site public est à jour environ une minute
+  plus tard. En cas d'échec, le panneau l'indique et propose **Réessayer**.
 - **Télécharger le fichier** donne le `evenements.json` modifié (utile sans accès GitHub).
 
 La première fois, il faut renseigner les **Réglages GitHub** :
@@ -59,6 +69,21 @@ de la page. Le champ `"legende"` à la racine du fichier est la phrase d'introdu
 
 Tous les dimanches sont colorés avec la couleur `dimanches` ; un dimanche qui a un événement prend la couleur
 de l'événement. On peut ajouter autant de catégories que souhaité.
+
+### Vacances scolaires
+
+```json
+"vacances": {
+  "legende": "Vacances scolaires vaudoises et congés…",
+  "periodes": [
+    { "nom": "Vacances d'automne", "du": "2026-10-10", "au": "2026-10-25" },
+    { "nom": "Jeûne fédéral", "du": "2026-09-21" }
+  ]
+}
+```
+
+Les dates jusqu'à l'été 2031 viennent du calendrier officiel du canton de Vaud
+([vd.ch/vacances](https://www.vd.ch/vacances)). Au-delà, il faudra ajouter les nouvelles périodes.
 
 ### Heure et lieu par défaut
 
@@ -114,10 +139,13 @@ Pour un événement répété (`repeter`), on peut donner une liste : `"2027": [
 
 ## Tester en local
 
-La page lit `evenements.json`, elle doit donc être servie par un petit serveur :
+Les pages lisent les fichiers JSON, elles doivent donc être servies par un petit serveur :
 
 ```bash
-python3 -m http.server
+python3 serveur.py
 ```
 
-puis ouvrir <http://localhost:8000>.
+puis ouvrir <http://localhost:8000>. En local, rien n'est envoyé sur GitHub : les modifications du mode
+édition sont enregistrées automatiquement dans le dossier `local/` (ignoré par git), et les pages lisent
+ensuite ces copies. Le vrai `evenements.json` n'est pas touché. Pour repartir des
+vraies données, supprimer le dossier `local/`.

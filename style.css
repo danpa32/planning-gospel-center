@@ -129,6 +129,9 @@ button {
 }
 
 .secondaire {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
   border: 1px solid var(--bordure);
   background: var(--surface);
   border-radius: 999px;
@@ -192,6 +195,7 @@ button {
   opacity: .45;
 }
 
+
 .pastille {
   display: inline-block;
   width: 10px;
@@ -211,6 +215,28 @@ button {
 }
 
 .legende .intro { margin: 0 0 6px; font-weight: 600; }
+
+.legende summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.legende summary::-webkit-details-marker { display: none; }
+
+.legende details:not([open]) > summary { margin: 0; }
+
+.legende .bascule { flex: none; font-weight: 400; color: var(--texte-doux); text-decoration: underline; }
+
+.legende .bascule::after { content: "Afficher"; }
+
+.legende details[open] .bascule::after { content: "Cacher"; }
+
+@media print {
+  .legende .bascule { display: none; }
+}
 
 .legende ul {
   list-style: none;
@@ -310,6 +336,27 @@ button {
   color: var(--texte);
   font-weight: 600;
 }
+
+.jour.vacances:not(.occupe) {
+  background-image: repeating-linear-gradient(135deg,
+    color-mix(in srgb, #94a3b8 45%, transparent) 0 2px, transparent 2px 5px);
+}
+
+.pastille.hachuree {
+  background: repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 0 1px var(--c);
+}
+
+.mois h2 .an {
+  margin-left: 6px;
+  color: var(--texte-doux);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.evts-mois .vacances-ligne { color: var(--texte-doux); }
+
+.ligne .meta .alerte { color: var(--aujourdhui); }
 
 .jour.aujourdhui {
   outline: 2px solid var(--aujourdhui);
@@ -602,6 +649,13 @@ button {
   .grille-annee { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mois { break-inside: avoid; padding: 8px; }
   .periode { break-inside: avoid-page; }
-  .jour.occupe, .jour.culte { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .jour.occupe, .jour.culte, .jour.vacances { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pastille { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Mode édition du planning : jours et événements cliquables */
+.modifiable { cursor: pointer; }
+.jour.modifiable:hover, .jour.modifiable:focus-visible { outline: 2px solid var(--texte); outline-offset: -2px; }
+.evts-mois li.modifiable:hover, .ligne.modifiable:hover { background: color-mix(in srgb, var(--texte) 6%, transparent); border-radius: 6px; }
+.evts-mois .responsable { color: var(--texte-doux); }
+.toutes-definitions > summary { cursor: pointer; padding: 10px 0 4px; font-weight: 600; }

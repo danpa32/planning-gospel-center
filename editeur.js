@@ -1,9 +1,10 @@
-// Mode édition : modifier les événements depuis la page, puis les enregistrer
-// directement dans evenements.json sur GitHub (API GitHub + jeton personnel).
+// Mode édition : modifier les événements depuis la page. Chaque modification est enregistrée
+// automatiquement dans evenements.json sur GitHub (API GitHub + jeton personnel), ou en local avec serveur.py.
 
-const STOCKAGE = "planning-github";
 const FICHIER = "evenements.json";
-const edition = { actif: false, sha: null, modifie: false, message: "" };
+const edition = { actif: false, sha: null, modifie: false, message: "", erreur: false };
+const autoPlanning = enregistrementAuto(FICHIER, edition, () => etat.donnees,
+  "Mise à jour du planning depuis l'interface web", () => rendreEditeur());
 
 const TYPES_REGLE = {
   chaque_annee: "Même date chaque année",
@@ -12,165 +13,13 @@ const TYPES_REGLE = {
   proche_de: "Jour le plus proche d'une date",
   date: "Une seule fois (date précise)",
 };
-const RANGS = { 1: "1er", 2: "2e", 3: "3e", 4: "4e", 5: "5e", dernier: "dernier" };
 
-// ---------- Réglages GitHub (gardés dans ce navigateur uniquement) ----------
-
-function lireReglages() {
-  let r = {};
-  try { r = JSON.parse(localStorage.getItem(STOCKAGE)) || {}; } catch { /* stockage indisponible */ }
-  const pages = /^([^.]+)\.github\.io$/.exec(location.hostname);
-  if (pages && !r.depot) {
-    const dossier = location.pathname.split("/")[1];
-    r.depot = `${pages[1]}/${dossier || location.hostname}`;
-  }
-  r.branche ||= "main";
-  return r;
-}
-
-function ecrireReglages(r) {
-  try { localStorage.setItem(STOCKAGE, JSON.stringify(r)); } catch { /* stockage indisponible */ }
-}
-
-function githubConfigure() {
-  const r = lireReglages();
-  return Boolean(r.depot && r.jeton);
-}
-
-// ---------- API GitHub ----------
-
-async function apiGithub(methode, corps) {
-  const { depot, branche, jeton } = lireReglages();
-  const url = `https://api.github.com/repos/${depot}/contents/${FICHIER}` +
-    (methode === "GET" ? `?ref=${encodeURIComponent(branche)}` : "");
-  const rep = await fetch(url, {
-    method: methode,
-    cache: "no-store",
-    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${jeton}` },
-    body: corps && JSON.stringify(corps),
-  });
-  if (!rep.ok) {
-    const messages = {
-      401: "jeton invalide ou expiré",
-      403: "le jeton n'a pas le droit d'écrire dans ce dépôt",
-      404: `dépôt « ${depot} » ou fichier ${FICHIER} introuvable (ou jeton sans accès)`,
-      409: "le fichier a été modifié entre-temps par quelqu'un d'autre : rechargez la page",
-      422: "le fichier a été modifié entre-temps par quelqu'un d'autre : rechargez la page",
-    };
-    throw new Error(messages[rep.status] || `erreur GitHub ${rep.status}`);
-  }
-  return rep.json();
-}
-
-// Lecture publique du fichier dans le dépôt (sans jeton pour les visiteurs).
-// Renvoie null si le dépôt est inconnu ou injoignable, pour se rabattre sur le fichier publié.
-async function lireFichierDepot() {
-  const { depot, branche, jeton } = lireReglages();
-  if (!depot) return null;
-  const headers = { Accept: "application/vnd.github.raw+json" };
-  if (jeton) headers.Authorization = `Bearer ${jeton}`;
-  try {
-    const rep = await fetch(
-      `https://api.github.com/repos/${depot}/contents/${FICHIER}?ref=${encodeURIComponent(branche)}`,
-      { cache: "no-cache", headers });
-    return rep.ok ? await rep.text() : null;
-  } catch {
-    return null;
-  }
-}
-
-function versBase64(texte) {
-  const octets = new TextEncoder().encode(texte);
-  let binaire = "";
-  for (const o of octets) binaire += String.fromCharCode(o);
-  return btoa(binaire);
-}
-
-function depuisBase64(b64) {
-  const binaire = atob(b64.replace(/\s/g, ""));
-  return new TextDecoder().decode(Uint8Array.from(binaire, c => c.charCodeAt(0)));
-}
-
-async function chargerDepuisGithub() {
-  const fichier = await apiGithub("GET");
-  etat.donnees = JSON.parse(depuisBase64(fichier.content));
+async function chargerPourEdition() {
+  const { donnees, sha } = await chargerJsonEdition(FICHIER);
+  etat.donnees = donnees;
   etat.donnees.categories ||= {};
   etat.donnees.evenements ||= [];
-  edition.sha = fichier.sha;
-}
-
-async function enregistrerSurGithub() {
-  const { branche } = lireReglages();
-  const rep = await apiGithub("PUT", {
-    message: "Mise à jour du planning depuis l'interface web",
-    content: versBase64(texteFichier()),
-    sha: edition.sha,
-    branch: branche,
-  });
-  edition.sha = rep.content.sha;
-  edition.modifie = false;
-}
-
-// ---------- Fichier JSON lisible (petits objets sur une ligne) ----------
-
-function formaterJson(v, retrait = "") {
-  if (v === null || typeof v !== "object") return JSON.stringify(v);
-  const tableau = Array.isArray(v);
-  const entrees = tableau ? v.map(x => [null, x]) : Object.entries(v);
-  if (!entrees.length) return tableau ? "[]" : "{}";
-  const parties = entrees.map(([k, x]) =>
-    (k === null ? "" : `${JSON.stringify(k)}: `) + formaterJson(x, retrait + "  "));
-  const simple = entrees.every(([, x]) =>
-    x === null || typeof x !== "object" || (Array.isArray(x) && x.every(y => typeof y !== "object")));
-  const enLigne = tableau ? `[${parties.join(", ")}]` : `{ ${parties.join(", ")} }`;
-  if (simple && retrait.length + enLigne.length <= 90) return enLigne;
-  const [ouvre, ferme] = tableau ? ["[", "]"] : ["{", "}"];
-  return `${ouvre}\n${parties.map(p => `${retrait}  ${p}`).join(",\n")}\n${retrait}${ferme}`;
-}
-
-function texteFichier() {
-  return formaterJson(etat.donnees) + "\n";
-}
-
-function telechargerFichier() {
-  const blob = new Blob([texteFichier()], { type: "application/json" });
-  const lien = el("a", { href: URL.createObjectURL(blob), download: FICHIER });
-  lien.click();
-  URL.revokeObjectURL(lien.href);
-}
-
-// ---------- Description lisible d'une règle ----------
-
-function nomDateMoisJour(texte) {
-  const [m, j] = texte.split("-").map(Number);
-  return `${j === 1 ? "1er" : j} ${NOMS_MOIS[m - 1]}`;
-}
-
-function listeMois(mois) {
-  const noms = [].concat(mois).map(m => NOMS_MOIS[m - 1]);
-  return noms.length > 1 ? `${noms.slice(0, -1).join(", ")} et ${noms.at(-1)}` : noms[0];
-}
-
-function decrireRegle(evt) {
-  const q = evt.quand || {};
-  let texte = "règle inconnue";
-  if ("chaque_annee" in q) texte = `chaque ${nomDateMoisJour(q.chaque_annee)}`;
-  else if ("paques" in q) {
-    const n = Number(q.paques);
-    texte = n === 0 ? "Pâques" : `Pâques ${n > 0 ? "+" : "−"} ${Math.abs(n)} jour${Math.abs(n) > 1 ? "s" : ""}`;
-  } else if ("proche_de" in q) texte = `${q.jour} le plus proche du ${nomDateMoisJour(q.proche_de)}`;
-  else if ("jour" in q) {
-    const mois = listeMois(q.mois);
-    texte = `${RANGS[q.rang] || q.rang} ${q.jour} ${/^[aeiouy]/.test(mois) ? "d'" : "de "}${mois}`;
-  }
-  else if ("date" in q) texte = [].concat(q.date).map(d => fmtLong.format(lireDate(d)) + " " + d.slice(0, 4)).join(", ");
-
-  const extras = [];
-  if (q.decalage) extras.push(`décalé de ${q.decalage} j`);
-  if (q.repeter > 1) extras.push(`${q.repeter} semaines de suite`);
-  if (evt.duree > 1) extras.push(`${evt.duree} jours`);
-  if (evt.exceptions) extras.push("avec exceptions");
-  return [texte, ...extras].join(" · ");
+  edition.sha = sha;
 }
 
 // ---------- Panneau d'édition ----------
@@ -180,21 +29,7 @@ function marquerModifie() {
   edition.message = "";
   rendre();
   rendreEditeur();
-}
-
-function boutonSupprimer(index) {
-  const bouton = el("button", { type: "button", class: "lien danger" }, "Supprimer");
-  bouton.addEventListener("click", () => {
-    if (bouton.dataset.confirmer) {
-      etat.donnees.evenements.splice(index, 1);
-      marquerModifie();
-    } else {
-      bouton.dataset.confirmer = "1";
-      bouton.textContent = "Confirmer ?";
-      setTimeout(() => { delete bouton.dataset.confirmer; bouton.textContent = "Supprimer"; }, 3000);
-    }
-  });
-  return bouton;
+  autoPlanning.planifier();
 }
 
 function rendreEditeur() {
@@ -203,58 +38,47 @@ function rendreEditeur() {
   document.body.classList.toggle("en-edition", edition.actif);
   if (!edition.actif) return zone.replaceChildren();
 
-  const reglages = lireReglages();
-  const source = githubConfigure()
-    ? `Dépôt GitHub : ${reglages.depot} (${reglages.branche})`
-    : "GitHub non configuré : les modifications peuvent seulement être téléchargées.";
-  const statut = edition.message || (edition.modifie ? "Modifications non enregistrées." : "Aucune modification en cours.");
-
-  const enregistrer = el("button", { type: "button", class: "principal" }, "Enregistrer sur GitHub");
-  enregistrer.disabled = !edition.modifie || !githubConfigure();
-  enregistrer.addEventListener("click", async () => {
-    enregistrer.disabled = true;
-    enregistrer.textContent = "Enregistrement…";
-    try {
-      await enregistrerSurGithub();
-      edition.message = "Enregistré ✓ Le site public sera à jour dans une minute environ.";
-    } catch (e) {
-      edition.message = `Échec de l'enregistrement : ${e.message}.`;
-    }
-    rendreEditeur();
-  });
-
   const lignes = etat.donnees.evenements.map((evt, i) => el("li", {},
     pastille(categorie(evt).couleur),
     el("div", { class: "def" },
       el("strong", {}, evt.titre || "(sans titre)"),
-      el("span", {}, decrireRegle(evt))),
+      el("span", {}, [decrireRegle(evt), evt.responsable].filter(Boolean).join(" · "))),
     el("div", { class: "boutons" },
       el("button", { type: "button", class: "lien", onclick: () => ouvrirFormulaire(i) }, "Modifier"),
-      boutonSupprimer(i))));
+      boutonConfirmer("Supprimer", () => {
+        etat.donnees.evenements.splice(i, 1);
+        marquerModifie();
+      }))));
 
   zone.replaceChildren(
     el("div", { class: "editeur-entete" },
       el("div", {},
         el("h2", {}, "Mode édition"),
-        el("p", { class: "source" }, source),
-        el("p", { class: edition.modifie ? "statut modifie" : "statut" }, statut)),
+        el("p", { class: "source" }, decrireStockage()),
+        statutEdition(edition, autoPlanning),
+        el("p", { class: "source" },
+          "Cliquez sur un jour du calendrier pour y ajouter un événement, ou sur un événement pour le modifier.")),
       el("div", { class: "boutons" },
-        el("button", { type: "button", class: "secondaire", onclick: () => ouvrirFormulaire(null) }, "+ Ajouter un événement"),
-        enregistrer,
-        el("button", { type: "button", class: "secondaire", onclick: telechargerFichier }, "Télécharger le fichier"),
-        el("button", { type: "button", class: "secondaire", onclick: ouvrirReglages }, "Réglages GitHub"),
+        el("button", { type: "button", class: "principal", onclick: () => ouvrirFormulaire(null) }, "+ Ajouter un événement"),
+        el("button", { type: "button", class: "secondaire", onclick: () => telechargerJson(FICHIER, etat.donnees) }, "Télécharger le fichier"),
+        EN_LOCAL ? null
+          : el("button", { type: "button", class: "secondaire", onclick: () => ouvrirReglages(entrerEdition) }, "Réglages GitHub"),
         el("button", { type: "button", class: "secondaire", onclick: quitterEdition }, "Quitter"))),
-    el("ul", { class: "definitions" }, lignes));
+    // Repliée par défaut : on travaille directement dans le calendrier.
+    el("details", { class: "toutes-definitions", ...(edition.listeOuverte ? { open: "" } : {}),
+      ontoggle: e => (edition.listeOuverte = e.currentTarget.open) },
+      el("summary", {}, `Liste de tous les événements (${lignes.length})`),
+      el("ul", { class: "definitions" }, lignes)));
 }
 
 async function entrerEdition() {
   edition.actif = true;
-  if (githubConfigure() && !edition.modifie) {
+  if (enregistrementPossible() && !edition.modifie) {
     try {
-      await chargerDepuisGithub();
+      await chargerPourEdition();
       edition.message = "";
     } catch (e) {
-      edition.message = `Impossible de lire le fichier sur GitHub : ${e.message}.`;
+      edition.message = `Impossible de lire le fichier ${EN_LOCAL ? "local" : "sur GitHub"} : ${e.message}.`;
     }
   }
   rendre();
@@ -263,26 +87,11 @@ async function entrerEdition() {
 
 function quitterEdition() {
   edition.actif = false;
+  rendre();
   rendreEditeur();
 }
 
 // ---------- Formulaire d'un événement ----------
-
-function champ(libelle, controle, aide) {
-  return el("label", { class: "champ" }, el("span", {}, libelle), controle, aide ? el("small", {}, aide) : null);
-}
-
-function select(options, valeur, attrs = {}) {
-  const s = el("select", attrs, Object.entries(options).map(([v, t]) => el("option", { value: v }, t)));
-  if (valeur != null) s.value = String(valeur);
-  return s;
-}
-
-function entree(type, valeur, attrs = {}) {
-  const i = el("input", { type, ...attrs });
-  if (valeur != null) i.value = valeur;
-  return i;
-}
 
 const OPTIONS_JOURS = Object.fromEntries(Object.keys(JOURS).map(j => [j, j]));
 const OPTIONS_MOIS = Object.fromEntries(NOMS_MOIS.map((m, i) => [i + 1, m]));
@@ -368,9 +177,15 @@ function lireExceptions(texte) {
   return Object.keys(exceptions).length ? exceptions : undefined;
 }
 
-function ouvrirFormulaire(index) {
+function dateIso(d) {
+  return `${d.getFullYear()}-${deuxChiffres(d.getMonth() + 1)}-${deuxChiffres(d.getDate())}`;
+}
+
+// Un nouvel événement a lieu une fois, à la date cliquée dans le calendrier (ou à choisir) ;
+// le type « Quand » permet ensuite d'en faire un événement qui revient chaque année.
+function ouvrirFormulaire(index, date = null) {
   const existant = index === null ? null : etat.donnees.evenements[index];
-  const evt = existant || { categorie: Object.keys(etat.donnees.categories)[0], quand: { jour: "dimanche", rang: 1, mois: 1 } };
+  const evt = existant || { categorie: Object.keys(etat.donnees.categories)[0], quand: { date: date ? dateIso(date) : "" } };
   const q = evt.quand || {};
   let type = typeDeRegle(q);
 
@@ -386,7 +201,9 @@ function ouvrirFormulaire(index) {
   const formulaire = el("form", { method: "dialog" },
     el("h2", {}, existant ? "Modifier l'événement" : "Nouvel événement"),
     champ("Titre", entree("text", evt.titre, { name: "titre", required: "" })),
-    champ("Catégorie", select(categories, evt.categorie, { name: "categorie" })),
+    el("div", { class: "rangee" },
+      champ("Responsable", entree("text", evt.responsable, { name: "responsable", placeholder: "personne ou groupe" })),
+      champ("Catégorie", select(categories, evt.categorie, { name: "categorie" }))),
     champ("Quand", choixType),
     zoneRegle,
     el("details", { class: "avance", ...(q.decalage || q.repeter > 1 || evt.duree > 1 || evt.exceptions ? { open: "" } : {}) },
@@ -420,7 +237,7 @@ function ouvrirFormulaire(index) {
       const nouveau = { titre: d.get("titre").trim(), categorie: d.get("categorie"), quand };
       const duree = Number(d.get("duree")) || 1;
       if (duree > 1) nouveau.duree = duree;
-      for (const cle of ["heure", "lieu", "description"]) {
+      for (const cle of ["responsable", "heure", "lieu", "description"]) {
         const v = d.get(cle).trim();
         if (v) nouveau[cle] = v;
       }
@@ -439,48 +256,15 @@ function ouvrirFormulaire(index) {
     }
   });
 
-  const dialogue = el("dialog", { class: "dialogue" }, formulaire);
-  dialogue.addEventListener("close", () => dialogue.remove());
-  document.body.append(dialogue);
-  dialogue.showModal();
+  const dialogue = ouvrirDialogue(formulaire);
 }
 
-// ---------- Réglages ----------
+// ---------- Initialisation ----------
 
-function ouvrirReglages() {
-  const r = lireReglages();
-  const formulaire = el("form", { method: "dialog" },
-    el("h2", {}, "Réglages GitHub"),
-    el("p", {}, "Pour enregistrer, il faut un jeton GitHub avec le droit d'écrire dans le dépôt. ",
-      el("a", { href: "https://github.com/settings/personal-access-tokens/new", target: "_blank", rel: "noopener" },
-        "Créer un jeton"),
-      " : choisir « Only select repositories » → ce dépôt, puis Permissions → Contents → « Read and write »."),
-    champ("Dépôt", entree("text", r.depot, { name: "depot", placeholder: "compte/depot", required: "" })),
-    champ("Branche", entree("text", r.branche, { name: "branche", required: "" })),
-    champ("Jeton", entree("password", r.jeton, { name: "jeton", placeholder: "github_pat_…", autocomplete: "off" }),
-      "Le jeton reste enregistré dans ce navigateur uniquement."),
-    el("div", { class: "boutons" },
-      el("button", { type: "button", class: "secondaire", onclick: () => dialogue.close() }, "Annuler"),
-      el("button", { type: "submit", class: "principal" }, "Enregistrer")));
-
-  formulaire.addEventListener("submit", async e => {
-    e.preventDefault();
-    const d = new FormData(formulaire);
-    ecrireReglages({ depot: d.get("depot").trim(), branche: d.get("branche").trim(), jeton: d.get("jeton").trim() });
-    dialogue.close();
-    await entrerEdition();
-  });
-
-  const dialogue = el("dialog", { class: "dialogue" }, formulaire);
-  dialogue.addEventListener("close", () => dialogue.remove());
-  document.body.append(dialogue);
-  dialogue.showModal();
-}
-
-function initEditeur() {
+function initEditeur(ouvrirEdition) {
   document.getElementById("modifier").addEventListener("click", entrerEdition);
   window.addEventListener("beforeunload", e => {
     if (edition.modifie) e.preventDefault();
   });
-  if (new URLSearchParams(location.hash.slice(1)).has("edition")) entrerEdition();
+  if (ouvrirEdition) entrerEdition();
 }

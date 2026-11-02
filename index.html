@@ -18,6 +18,10 @@
       <p class="resume" id="resume"></p>
     </div>
     <div class="actions">
+      <div class="onglets" role="tablist" aria-label="Découpage de l'année">
+        <button type="button" data-cycle="civile" role="tab">Janv. – déc.</button>
+        <button type="button" data-cycle="scolaire" role="tab">Juil. – juin</button>
+      </div>
       <div class="onglets" role="tablist">
         <button type="button" data-vue="calendrier" role="tab">Calendrier</button>
         <button type="button" data-vue="liste" role="tab">Liste</button>
@@ -48,6 +52,8 @@
     <button type="button" id="modifier" class="lien">Modifier le planning</button>
   </footer>
 
+  <script src="commun.js"></script>
+  <script src="dates.js"></script>
   <script src="app.js"></script>
   <script src="editeur.js"></script>
 </body>

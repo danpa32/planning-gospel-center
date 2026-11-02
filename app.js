@@ -1,128 +1,24 @@
 // Planning annuel de l'église.
 // Les événements sont décrits dans evenements.json avec une règle de récurrence ;
-// ce script calcule leurs dates pour l'année affichée.
+// ce script calcule leurs dates pour l'année affichée (civile ou scolaire, voir dates.js).
 
-const JOURS = { lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6, dimanche: 0 };
-const NOMS_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
-  "août", "septembre", "octobre", "novembre", "décembre"];
 const ENTETES_JOURS = ["L", "M", "M", "J", "V", "S", "D"];
 const COULEUR_DEFAUT = "#78716c";
+const COULEUR_VACANCES = "#94a3b8";
 
 const etat = {
   donnees: null,
-  annee: new Date().getFullYear(),
+  annee: null,
+  cycle: lireCyclePrefere(),
   vue: "calendrier",
   periode: "trimestre",
   masquees: new Set(),
+  vacances: [],
+  erreurVacances: null,
 };
 
-// ---------- Calcul des dates ----------
-
-// Dimanche de Pâques (calendrier grégorien, algorithme de Meeus/Jones/Butcher).
-function paques(annee) {
-  const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const mois = Math.floor((h + l - 7 * m + 114) / 31);
-  const jour = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(annee, mois - 1, jour);
-}
-
-function ajouterJours(date, n) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
-}
-
-function lireDate(texte) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texte);
-  if (!m) throw new Error(`date « ${texte} » invalide (format attendu : AAAA-MM-JJ)`);
-  return new Date(+m[1], +m[2] - 1, +m[3]);
-}
-
-// n-ième jour de la semaine d'un mois (rang 1 à 5, ou "dernier").
-function nemeJour(annee, mois, jourSemaine, rang) {
-  if (rang === "dernier") {
-    const dernier = new Date(annee, mois, 0);
-    return ajouterJours(dernier, -((dernier.getDay() - jourSemaine + 7) % 7));
-  }
-  const premier = new Date(annee, mois - 1, 1);
-  const date = ajouterJours(premier, (jourSemaine - premier.getDay() + 7) % 7 + (rang - 1) * 7);
-  return date.getMonth() === mois - 1 ? date : null;
-}
-
-function datesPourAnnee(evt, annee) {
-  const exceptions = evt.exceptions || {};
-  if (String(annee) in exceptions) {
-    const exc = exceptions[annee];
-    if (exc === null || exc === "annulé") return [];
-    return [].concat(exc).map(lireDate);
-  }
-  if (evt.annees && !evt.annees.includes(annee)) return [];
-
-  const q = evt.quand || {};
-  const decalage = Number(q.decalage || 0);
-  const repeter = Math.max(1, Number(q.repeter || 1));
-  return datesDeBase(q, annee).flatMap(d =>
-    Array.from({ length: repeter }, (_, i) => ajouterJours(d, decalage + i * 7)));
-}
-
-function datesDeBase(q, annee) {
-  if ("date" in q) {
-    return [].concat(q.date).map(lireDate).filter(d => d.getFullYear() === annee);
-  }
-  if ("chaque_annee" in q) {
-    const m = /^(\d{2})-(\d{2})$/.exec(q.chaque_annee);
-    if (!m) throw new Error(`"chaque_annee" doit être au format MM-JJ (ex. "12-25")`);
-    return [new Date(annee, +m[1] - 1, +m[2])];
-  }
-  if ("paques" in q) {
-    return [ajouterJours(paques(annee), Number(q.paques))];
-  }
-  if ("proche_de" in q) {
-    // Le jour de la semaine demandé le plus proche d'une date (ex. le samedi le plus proche d'Halloween).
-    const m = /^(\d{2})-(\d{2})$/.exec(q.proche_de);
-    if (!m) throw new Error(`"proche_de" doit être au format MM-JJ (ex. "10-31")`);
-    const jourSemaine = JOURS[String(q.jour).toLowerCase()];
-    if (jourSemaine === undefined) throw new Error(`jour « ${q.jour} » inconnu`);
-    const repere = new Date(annee, +m[1] - 1, +m[2]);
-    let ecart = (jourSemaine - repere.getDay() + 7) % 7;
-    if (ecart > 3) ecart -= 7;
-    return [ajouterJours(repere, ecart)];
-  }
-  if ("jour" in q) {
-    const jourSemaine = JOURS[String(q.jour).toLowerCase()];
-    if (jourSemaine === undefined) throw new Error(`jour « ${q.jour} » inconnu`);
-    if (q.rang !== "dernier" && !(q.rang >= 1 && q.rang <= 5)) {
-      throw new Error(`"rang" doit valoir 1 à 5 ou "dernier"`);
-    }
-    return [].concat(q.mois)
-      .map(mois => nemeJour(annee, mois, jourSemaine, q.rang))
-      .filter(Boolean);
-  }
-  throw new Error(`règle "quand" non reconnue`);
-}
-
-function occurrences(annee) {
-  const erreurs = [];
-  const liste = [];
-  for (const evt of etat.donnees.evenements) {
-    try {
-      const dates = datesPourAnnee(evt, annee);
-      const serie = (evt.quand?.repeter || 1) > 1 && dates.length > 1;
-      dates.forEach((debut, i) => {
-        const duree = Math.max(1, evt.duree || 1);
-        const titre = serie ? `${evt.titre} (${i + 1}/${dates.length})` : evt.titre;
-        liste.push({ evt, titre, debut, fin: ajouterJours(debut, duree - 1) });
-      });
-    } catch (e) {
-      erreurs.push(`${evt.titre || "(sans titre)"} : ${e.message}`);
-    }
-  }
-  liste.sort((a, b) => a.debut - b.debut || a.titre.localeCompare(b.titre));
-  return { liste, erreurs };
+function occurrences() {
+  return occurrencesCycle(etat.donnees.evenements, etat.annee, etat.cycle);
 }
 
 // ---------- Utilitaires d'affichage ----------
@@ -138,6 +34,18 @@ function dimanchesVisibles() {
   return Boolean(etat.donnees.dimanches) && !etat.masquees.has(CLE_DIMANCHES);
 }
 
+// Les vacances scolaires sont hachurées dans le calendrier (liste "vacances" d'evenements.json).
+const CLE_VACANCES = "_vacances";
+
+function vacancesVisibles() {
+  return etat.vacances.length > 0 && !etat.masquees.has(CLE_VACANCES);
+}
+
+function vacancesDuCycle() {
+  const { debut, fin } = bornesCycle(etat.annee, etat.cycle);
+  return etat.vacances.filter(v => v.fin >= debut && v.debut <= fin);
+}
+
 // Heure et lieu : ceux de l'événement, sinon les valeurs "par_defaut" du fichier.
 function heureDe(evt) {
   return evt.heure || etat.donnees.par_defaut?.heure || "";
@@ -147,31 +55,31 @@ function lieuDe(evt) {
   return evt.lieu || etat.donnees.par_defaut?.lieu || "";
 }
 
-function memeJour(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function enEdition() {
+  return typeof edition !== "undefined" && edition.actif;
 }
 
-const fmtCourt = new Intl.DateTimeFormat("fr-CH", { day: "numeric", month: "short" });
-const fmtLong = new Intl.DateTimeFormat("fr-CH", { weekday: "short", day: "numeric", month: "long" });
+// En mode édition, cliquer sur un événement l'ouvre ; cliquer sur un jour libre en ajoute un à cette date.
+function rendreModifiable(noeud, ouvrir, titre) {
+  if (!enEdition()) return noeud;
+  noeud.classList.add("modifiable");
+  noeud.setAttribute("role", "button");
+  noeud.setAttribute("tabindex", "0");
+  if (titre) noeud.title = titre;
+  noeud.addEventListener("click", ouvrir);
+  noeud.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ouvrir(); }
+  });
+  return noeud;
+}
+
+function modifierOccurrence(o) {
+  ouvrirFormulaire(etat.donnees.evenements.indexOf(o.evt));
+}
 
 function plageDates(occ, fmt) {
   if (memeJour(occ.debut, occ.fin)) return fmt.format(occ.debut);
   return `${fmt.format(occ.debut)} – ${fmt.format(occ.fin)}`;
-}
-
-function el(tag, attrs = {}, ...enfants) {
-  const n = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "style") n.style.cssText = v;
-    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
-    else n.setAttribute(k, v);
-  }
-  for (const e of enfants.flat()) if (e != null) n.append(e);
-  return n;
-}
-
-function pastille(couleur) {
-  return el("span", { class: "pastille", style: `--c:${couleur}` });
 }
 
 // ---------- Vues ----------
@@ -180,15 +88,18 @@ function vueCalendrier(occs) {
   const aujourdhui = new Date();
   const grille = el("div", { class: "grille-annee" });
 
-  for (let m = 0; m < 12; m++) {
+  const vacances = vacancesVisibles() ? vacancesDuCycle() : [];
+  const bornes = bornesCycle(etat.annee, etat.cycle);
+
+  for (const { annee: a, mois: m } of moisDuCycle(etat.annee, etat.cycle)) {
     const jours = el("div", { class: "jours" }, ENTETES_JOURS.map(j => el("span", { class: "entete-jour" }, j)));
-    const premier = new Date(etat.annee, m, 1);
+    const premier = new Date(a, m, 1);
     const decalage = (premier.getDay() + 6) % 7; // semaine commençant le lundi
     for (let i = 0; i < decalage; i++) jours.append(el("span"));
 
-    const nbJours = new Date(etat.annee, m + 1, 0).getDate();
+    const nbJours = new Date(a, m + 1, 0).getDate();
     for (let d = 1; d <= nbJours; d++) {
-      const date = new Date(etat.annee, m, d);
+      const date = new Date(a, m, d);
       const duJour = occs.filter(o => date >= o.debut && date <= o.fin);
       const classes = ["jour"];
       const dimancheOrdinaire = date.getDay() === 0 && !duJour.length && dimanchesVisibles();
@@ -196,28 +107,46 @@ function vueCalendrier(occs) {
       if (duJour.length) classes.push("occupe");
       if (dimancheOrdinaire) classes.push("culte");
       if (memeJour(date, aujourdhui)) classes.push("aujourdhui");
+      const enVacances = vacancesVisibles() && vacancesDuJour(etat.vacances, date);
+      if (enVacances) classes.push("vacances");
       const attrs = { class: classes.join(" ") };
       if (duJour.length) {
         attrs.style = `--c:${categorie(duJour[0].evt).couleur}`;
-        attrs.title = duJour.map(o => o.titre).join("\n");
+        attrs.title = duJour.map(o => o.evt.responsable ? `${o.titre} (${o.evt.responsable})` : o.titre).join("\n");
       } else if (dimancheOrdinaire) {
         attrs.style = `--c:${etat.donnees.dimanches.couleur}`;
         attrs.title = etat.donnees.dimanches.nom;
       }
-      jours.append(el("span", attrs, String(d)));
+      if (enVacances) attrs.title = [attrs.title, enVacances.nom].filter(Boolean).join("\n");
+      const jour = el("span", attrs, String(d));
+      jours.append(duJour.length
+        ? rendreModifiable(jour, () => modifierOccurrence(duJour[0]))
+        : rendreModifiable(jour, () => ouvrirFormulaire(null, date), `${attrs.title ? attrs.title + "\n" : ""}Ajouter un événement ce jour`));
     }
 
-    const duMois = occs.filter(o => o.debut.getMonth() === m);
+    const duMois = occs.filter(o => o.debut.getFullYear() === a && o.debut.getMonth() === m);
+    // Des vacances commencées avant le début de l'année affichée sont listées sous son premier mois.
+    const vacancesDuMois = vacances.filter(v => {
+      const debut = v.debut < bornes.debut ? bornes.debut : v.debut;
+      return debut.getFullYear() === a && debut.getMonth() === m;
+    });
     const liste = el("ul", { class: "evts-mois" },
-      duMois.length
-        ? duMois.map(o => el("li", {},
-            pastille(categorie(o.evt).couleur),
-            el("span", { class: "date" }, plageDates(o, fmtCourt)),
-            el("span", {}, o.titre)))
-        : el("li", { class: "vide" }, "—"));
+      duMois.map(o => rendreModifiable(el("li", {},
+        pastille(categorie(o.evt).couleur),
+        el("span", { class: "date" }, plageDates(o, fmtCourt)),
+        el("span", {}, o.titre,
+          o.evt.responsable ? el("span", { class: "responsable" }, ` · ${o.evt.responsable}`) : null)),
+        () => modifierOccurrence(o))),
+      vacancesDuMois.map(v => el("li", { class: "vacances-ligne" },
+        el("span", { class: "pastille hachuree", style: `--c:${COULEUR_VACANCES}` }),
+        el("span", { class: "date" }, plageDates(v, fmtCourt)),
+        el("span", {}, v.nom))),
+      duMois.length || vacancesDuMois.length ? null : el("li", { class: "vide" }, "—"));
 
     grille.append(el("section", { class: "mois" },
-      el("h2", {}, NOMS_MOIS[m], duMois.length ? el("span", { class: "compte" }, String(duMois.length)) : null),
+      el("h2", {}, NOMS_MOIS[m],
+        etat.cycle === "scolaire" ? el("span", { class: "an" }, String(a)) : null,
+        duMois.length ? el("span", { class: "compte" }, String(duMois.length)) : null),
       jours, liste));
   }
   return grille;
@@ -239,10 +168,11 @@ function periodes() {
 }
 
 function texteRecap(p, occs) {
-  const lignes = [`${etat.donnees.eglise} – ${p.nom} ${etat.annee}`, ""];
+  const lignes = [`${etat.donnees.eglise} – ${p.nom} ${libelleCycle(etat.annee, etat.cycle)}`, ""];
   for (const o of occs) {
     let ligne = `• ${plageDates(o, fmtLong)} : ${o.titre}`;
-    const details = [heureDe(o.evt), lieuDe(o.evt)].filter(Boolean).join(", ");
+    const details = [heureDe(o.evt), lieuDe(o.evt), o.evt.responsable && `resp. ${o.evt.responsable}`]
+      .filter(Boolean).join(", ");
     if (details) ligne += ` (${details})`;
     lignes.push(ligne);
   }
@@ -252,8 +182,12 @@ function texteRecap(p, occs) {
 
 function vueListe(occs) {
   const conteneur = el("div");
+  const mois = moisDuCycle(etat.annee, etat.cycle);
   for (const p of periodes()) {
-    const duPeriode = occs.filter(o => o.debut.getMonth() >= p.debut && o.debut.getMonth() <= p.fin);
+    const duPeriode = occs.filter(o => {
+      const rang = rangDansCycle(o.debut.getFullYear(), o.debut.getMonth(), etat.annee, etat.cycle);
+      return rang >= p.debut && rang <= p.fin;
+    });
     const bouton = el("button", { type: "button", class: "copier" }, "Copier le récap");
     bouton.addEventListener("click", async () => {
       try {
@@ -268,19 +202,23 @@ function vueListe(occs) {
     const liste = el("ul", { class: "liste" },
       duPeriode.length
         ? duPeriode.map(o => {
-            const meta = [heureDe(o.evt), lieuDe(o.evt), categorie(o.evt).nom].filter(Boolean).join(" · ");
-            return el("li", { class: "ligne" },
+            const vacances = vacancesDuJour(etat.vacances, o.debut);
+            const meta = [heureDe(o.evt), lieuDe(o.evt), categorie(o.evt).nom,
+              o.evt.responsable && `Responsable : ${o.evt.responsable}`].filter(Boolean).join(" · ");
+            return rendreModifiable(el("li", { class: "ligne" },
               el("span", { class: "quand" }, plageDates(o, fmtLong)),
               el("span", { class: "titre" }, pastille(categorie(o.evt).couleur), o.titre),
-              el("p", { class: "meta" }, meta),
-              o.evt.description ? el("p", { class: "desc" }, o.evt.description) : null);
+              el("p", { class: "meta" }, meta,
+                vacances ? el("span", { class: "alerte" }, ` · ${vacances.nom}`) : null),
+              o.evt.description ? el("p", { class: "desc" }, o.evt.description) : null),
+              () => modifierOccurrence(o));
           })
         : el("li", { class: "vide" }, "Aucun événement."));
 
     conteneur.append(el("section", { class: "periode" },
       el("div", { class: "periode-entete" },
         el("h2", {}, p.nom,
-          el("span", { class: "plage" }, `${NOMS_MOIS[p.debut]} – ${NOMS_MOIS[p.fin]}`),
+          el("span", { class: "plage" }, `${NOMS_MOIS[mois[p.debut].mois]} – ${NOMS_MOIS[mois[p.fin].mois]}`),
           el("span", { class: "compte" }, pluriel(duPeriode.length, "événement"))),
         bouton),
       liste));
@@ -299,11 +237,12 @@ function icsTexte(t) {
 }
 
 function exporterIcs() {
-  const { liste } = occurrences(etat.annee);
+  const { liste } = occurrences();
   const horodatage = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Planning eglise//FR", "CALSCALE:GREGORIAN"];
   for (const o of liste.filter(o => !etat.masquees.has(o.evt.categorie))) {
-    const desc = [heureDe(o.evt), o.evt.description].filter(Boolean).join(" – ");
+    const desc = [heureDe(o.evt), o.evt.responsable && `Responsable : ${o.evt.responsable}`, o.evt.description]
+      .filter(Boolean).join(" – ");
     lignes.push(
       "BEGIN:VEVENT",
       `UID:${icsDate(o.debut)}-${o.titre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}@planning-eglise`,
@@ -319,7 +258,7 @@ function exporterIcs() {
   lignes.push("END:VCALENDAR");
 
   const blob = new Blob([lignes.join("\r\n")], { type: "text/calendar" });
-  const lien = el("a", { href: URL.createObjectURL(blob), download: `planning-${etat.annee}.ics` });
+  const lien = el("a", { href: URL.createObjectURL(blob), download: `planning-${libelleCycle(etat.annee, etat.cycle)}.ics` });
   lien.click();
   URL.revokeObjectURL(lien.href);
 }
@@ -336,13 +275,10 @@ function afficherErreurs(erreurs) {
   }
 }
 
-function pluriel(n, mot) {
-  return `${n} ${mot}${n > 1 ? "s" : ""}`;
-}
-
-function nombreDimanches(annee) {
+function nombreDimanches() {
+  const { debut, fin } = bornesCycle(etat.annee, etat.cycle);
   let n = 0;
-  for (let d = new Date(annee, 0, 1); d.getFullYear() === annee; d = ajouterJours(d, 1)) {
+  for (let d = debut; d <= fin; d = ajouterJours(d, 1)) {
     if (d.getDay() === 0) n++;
   }
   return n;
@@ -350,11 +286,12 @@ function nombreDimanches(annee) {
 
 // Nombre d'événements de l'année par catégorie, affiché sur chaque filtre.
 function rendreFiltres(liste) {
-  const comptes = { [CLE_DIMANCHES]: nombreDimanches(etat.annee) };
+  const comptes = { [CLE_DIMANCHES]: nombreDimanches(), [CLE_VACANCES]: vacancesDuCycle().length };
   for (const o of liste) comptes[o.evt.categorie] = (comptes[o.evt.categorie] || 0) + 1;
   const zone = document.getElementById("filtres");
   const entrees = Object.entries(etat.donnees.categories);
   if (etat.donnees.dimanches) entrees.unshift([CLE_DIMANCHES, etat.donnees.dimanches]);
+  if (etat.vacances.length) entrees.push([CLE_VACANCES, { nom: "Vacances scolaires", couleur: COULEUR_VACANCES }]);
   zone.replaceChildren(...entrees.map(([cle, cat]) =>
     el("button", {
       type: "button",
@@ -364,7 +301,8 @@ function rendreFiltres(liste) {
         etat.masquees.has(cle) ? etat.masquees.delete(cle) : etat.masquees.add(cle);
         rendre();
       },
-    }, pastille(cat.couleur), cat.nom, el("span", { class: "compte" }, String(comptes[cle] || 0)))));
+    }, cle === CLE_VACANCES ? el("span", { class: "pastille hachuree", style: `--c:${cat.couleur}` }) : pastille(cat.couleur),
+    cat.nom, el("span", { class: "compte" }, String(comptes[cle] || 0)))));
 }
 
 // Signification des couleurs : une ligne par catégorie qui a une "legende".
@@ -372,43 +310,50 @@ function rendreLegende() {
   const zone = document.getElementById("legende");
   const entrees = [etat.donnees.dimanches, ...Object.values(etat.donnees.categories)]
     .filter(cat => cat?.legende);
-  zone.hidden = !entrees.length;
-  zone.replaceChildren(
-    etat.donnees.legende ? el("p", { class: "intro" }, etat.donnees.legende) : "",
+  const vacances = etat.vacances.length && etat.donnees.vacances.legende
+    ? el("li", {}, el("span", { class: "pastille hachuree", style: `--c:${COULEUR_VACANCES}` }),
+        el("span", {}, el("strong", {}, "Vacances scolaires"), el("br"), etat.donnees.vacances.legende))
+    : null;
+  zone.hidden = !entrees.length && !vacances;
+  zone.replaceChildren(legendeRepliable(etat.donnees.legende || "Légende",
     el("ul", {}, entrees.map(cat => el("li", {},
       pastille(cat.couleur),
-      el("span", {}, el("strong", {}, cat.nom), ` : ${cat.legende}`)))));
+      el("span", {}, el("strong", {}, cat.nom), el("br"), cat.legende))), vacances)));
 }
 
 function rendre() {
-  document.getElementById("annee").textContent = etat.annee;
-  document.title = `${etat.donnees.eglise} – Planning ${etat.annee}`;
+  const libelle = libelleCycle(etat.annee, etat.cycle);
+  document.getElementById("annee").textContent = libelle;
+  document.title = `${etat.donnees.eglise} – Planning ${libelle}`;
+  document.querySelectorAll("[data-cycle]").forEach(b =>
+    b.setAttribute("aria-selected", String(b.dataset.cycle === etat.cycle)));
   document.querySelectorAll("[data-vue]").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.vue === etat.vue)));
   document.querySelectorAll("[data-periode]").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.periode === etat.periode)));
   document.getElementById("choix-periode").hidden = etat.vue !== "liste";
 
-  const { liste, erreurs } = occurrences(etat.annee);
-  afficherErreurs(erreurs);
+  const { liste, erreurs } = occurrences();
+  afficherErreurs(etat.erreurVacances ? [...erreurs, etat.erreurVacances] : erreurs);
   rendreFiltres(liste);
   rendreLegende();
   const visibles = liste.filter(o => !etat.masquees.has(o.evt.categorie));
   document.getElementById("resume").textContent =
-    `${pluriel(visibles.length, "événement")} · ${pluriel(nombreDimanches(etat.annee), "dimanche")}`;
+    `${pluriel(visibles.length, "événement")} · ${pluriel(nombreDimanches(), "dimanche")}`;
   document.getElementById("contenu").replaceChildren(
     etat.vue === "liste" ? vueListe(visibles) : vueCalendrier(visibles));
 
-  const params = new URLSearchParams({ annee: etat.annee, vue: etat.vue });
+  const params = new URLSearchParams({ annee: etat.annee, cycle: etat.cycle, vue: etat.vue });
   if (etat.vue === "liste") params.set("par", etat.periode);
-  if (typeof edition !== "undefined" && edition.actif) params.set("edition", "");
+  if (enEdition()) params.set("edition", "");
   history.replaceState(null, "", `#${params}`);
 }
 
 function lireUrl() {
   const params = new URLSearchParams(location.hash.slice(1));
+  if (CYCLES[params.get("cycle")]) etat.cycle = params.get("cycle");
   const annee = parseInt(params.get("annee"), 10);
-  if (annee > 1900 && annee < 3000) etat.annee = annee;
+  etat.annee = annee > 1900 && annee < 3000 ? annee : cycleEnCours(etat.cycle);
   if (["calendrier", "liste"].includes(params.get("vue"))) etat.vue = params.get("vue");
   if (["trimestre", "semestre"].includes(params.get("par"))) etat.periode = params.get("par");
 }
@@ -416,13 +361,7 @@ function lireUrl() {
 async function demarrer() {
   try {
     // La version du dépôt est la plus récente ; le fichier publié peut être en cache quelques minutes.
-    let texte = await lireFichierDepot();
-    if (texte === null) {
-      const rep = await fetch("evenements.json", { cache: "no-cache" });
-      if (!rep.ok) throw new Error(`fichier introuvable (${rep.status})`);
-      texte = await rep.text();
-    }
-    etat.donnees = JSON.parse(texte);
+    etat.donnees = await lireJson("evenements.json");
   } catch (e) {
     document.getElementById("erreurs").hidden = false;
     document.getElementById("erreurs").textContent =
@@ -432,17 +371,29 @@ async function demarrer() {
   }
   etat.donnees.categories ||= {};
   etat.donnees.evenements ||= [];
+  etat.masquees.add(CLE_VACANCES); // vacances masquées par défaut, à activer dans les filtres
+  try {
+    etat.vacances = periodesVacances(etat.donnees);
+  } catch (e) {
+    etat.erreurVacances = `Vacances scolaires : ${e.message}`;
+  }
   document.getElementById("nom-eglise").textContent = etat.donnees.eglise || "Planning annuel";
 
   lireUrl();
+  const ouvrirEdition = new URLSearchParams(location.hash.slice(1)).has("edition"); // avant que rendre() réécrive l'adresse
   document.getElementById("annee-prec").onclick = () => { etat.annee--; rendre(); };
   document.getElementById("annee-suiv").onclick = () => { etat.annee++; rendre(); };
   document.querySelectorAll("[data-vue]").forEach(b => (b.onclick = () => { etat.vue = b.dataset.vue; rendre(); }));
   document.querySelectorAll("[data-periode]").forEach(b => (b.onclick = () => { etat.periode = b.dataset.periode; rendre(); }));
+  document.querySelectorAll("[data-cycle]").forEach(b => (b.onclick = () => {
+    etat.cycle = b.dataset.cycle;
+    ecrireCyclePrefere(etat.cycle);
+    rendre();
+  }));
   document.getElementById("exporter").onclick = exporterIcs;
   document.getElementById("imprimer").onclick = () => window.print();
   rendre();
-  initEditeur();
+  initEditeur(ouvrirEdition);
 }
 
 document.addEventListener("DOMContentLoaded", demarrer);
