@@ -206,7 +206,7 @@ function occurrencesCycle(evenements, annee, cycle) {
           if (d < debut || d > fin) return;
           const duree = Math.max(1, evt.duree || 1);
           const titre = serie ? `${evt.titre} (${i + 1}/${dates.length})` : evt.titre;
-          liste.push({ evt, titre, debut: d, fin: ajouterJours(d, duree - 1), suiteDeSerie: serie && i > 0 });
+          liste.push({ evt, titre, annee: a, debut: d, fin: ajouterJours(d, duree - 1), suiteDeSerie: serie && i > 0 });
         });
       } catch (e) {
         erreurs.add(`${evt.titre || "(sans titre)"} : ${e.message}`);

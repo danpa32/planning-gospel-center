@@ -181,7 +181,8 @@ function dateIso(d) {
 
 // Un nouvel événement a lieu une fois, à la date cliquée dans le calendrier (ou à choisir) ;
 // le type « Quand » permet ensuite d'en faire un événement qui revient chaque année.
-function ouvrirFormulaire(index, date = null) {
+// anneeClic : année de l'occurrence cliquée dans le calendrier, pour pouvoir annuler cette année seulement.
+function ouvrirFormulaire(index, date = null, anneeClic = null) {
   const existant = index === null ? null : etat.donnees.evenements[index];
   const evt = existant || { categorie: Object.keys(etat.donnees.categories)[0], quand: { date: date ? dateIso(date) : "" } };
   const q = evt.quand || {};
@@ -219,8 +220,24 @@ function ouvrirFormulaire(index, date = null) {
     champ("Description", el("textarea", { name: "description", rows: 2 }, evt.description || "")),
     erreur,
     el("div", { class: "boutons" },
+      ...(existant ? boutonsSuppression() : []),
       el("button", { type: "button", class: "secondaire", onclick: () => dialogue.close() }, "Annuler"),
       el("button", { type: "submit", class: "principal" }, existant ? "Appliquer" : "Ajouter")));
+
+  // Un événement unique se supprime ; un événement qui revient peut aussi être annulé une seule année.
+  function boutonsSuppression() {
+    const revient = typeDeRegle(q) !== "date";
+    const fermerPuis = action => () => { action(); dialogue.close(); marquerModifie(); };
+    return [
+      revient && anneeClic ? boutonConfirmer(`Annuler en ${anneeClic}`, fermerPuis(() => {
+        existant.exceptions = { ...existant.exceptions, [anneeClic]: "annulé" };
+      })) : null,
+      boutonConfirmer(revient ? "Supprimer (toutes les années)" : "Supprimer", fermerPuis(() => {
+        etat.donnees.evenements.splice(index, 1);
+      })),
+      el("span", { class: "espace" }),
+    ];
+  }
 
   formulaire.addEventListener("submit", e => {
     e.preventDefault();

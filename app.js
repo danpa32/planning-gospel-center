@@ -74,7 +74,7 @@ function rendreModifiable(noeud, ouvrir, titre) {
 }
 
 function modifierOccurrence(o) {
-  ouvrirFormulaire(etat.donnees.evenements.indexOf(o.evt));
+  ouvrirFormulaire(etat.donnees.evenements.indexOf(o.evt), null, o.annee);
 }
 
 function plageDates(occ, fmt) {
